@@ -1,6 +1,13 @@
 # vjepa2-action-anticipation
 
 # Pedestrian Action Prediction using V-JEPA2
+## What This Project Demonstrates
+
+• Applying large-scale self-supervised world models to autonomous driving tasks  
+• Designing prediction systems for pedestrian behavior anticipation  
+• Building end-to-end ML pipelines for large video datasets  
+• Implementing evaluation frameworks for safety-critical prediction systems
+
 
 ### Self-Supervised World Models for Autonomous Driving Safety
 
