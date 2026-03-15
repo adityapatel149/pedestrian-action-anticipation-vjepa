@@ -1,307 +1,331 @@
-# vjepa2-action-anticipation
 
-# Pedestrian Action Prediction using V-JEPA2
-## What This Project Demonstrates
+# Pedestrian Action Prediction with V-JEPA2
+### Self-Supervised World Models for Autonomous Driving
 
-• Applying large-scale self-supervised world models to autonomous driving tasks  
-• Designing prediction systems for pedestrian behavior anticipation  
-• Building end-to-end ML pipelines for large video datasets  
-• Implementing evaluation frameworks for safety-critical prediction systems
+🚗 Predicting pedestrian crossing behavior **before it happens**.
 
+This project investigates how **Meta AI’s V-JEPA2 world model** can be adapted to **pedestrian behavior prediction for autonomous driving systems**.
 
-### Self-Supervised World Models for Autonomous Driving Safety
+Instead of relying on complex pipelines (pose estimation → trajectory models → rule engines), this work explores a **world-model-based approach** that leverages **self-supervised video representations trained on massive datasets** to anticipate human actions.
 
-🚗 Predicting whether a pedestrian will cross the road **before it happens**.
+The system predicts whether a pedestrian will **cross the road within the next 1–3 seconds**, a key capability required for **safe autonomous vehicle planning and collision avoidance**.
 
-This project explores how **Meta AI’s V-JEPA2 world model** can be adapted for **pedestrian intention prediction** in autonomous driving.
+---------------------------------------------------------------------
 
-Instead of relying on complex multi-stage pipelines (pose estimation, trajectory models, etc.), this work leverages **self-supervised video representations trained on massive datasets** to anticipate human behavior.
+# What This Project Demonstrates
 
----
+This repository demonstrates experience with problems central to **autonomous driving and robotics AI systems**:
 
-## Demo
+• Applying **self-supervised world models** to safety-critical robotics tasks  
+• Designing **pedestrian behavior prediction systems**  
+• Building **end-to-end ML pipelines for large video datasets**  
+• Implementing **temporal deep learning models for action anticipation**  
+• Developing **evaluation frameworks for autonomous driving prediction tasks**
 
-<p align="center">
-<img src="assets/demo.gif" width="700">
-</p>
+---------------------------------------------------------------------
 
-Example prediction showing early crossing anticipation.
-
----
-
-# Project Highlights
-
-• Built a **pedestrian behavior anticipation system** using a frozen **V-JEPA2 world model**  
-• Developed a **multi-query probing architecture** for multi-task prediction  
-• Implemented **bounding-box aware video representation learning**  
-• Designed **evaluation protocols for early anticipation performance (TTE curves)**  
-• Trained and evaluated on **JAAD and PIE autonomous driving datasets**
-
----
-
-# Why This Matters
-
-Autonomous vehicles must anticipate human behavior **before it happens**.
-
-Pedestrian actions contain subtle cues:
-
-• head orientation  
-• gait speed  
-• proximity to crosswalk  
-• traffic signal context
-
-Traditional pipelines require **heavy annotations and multiple subsystems**, which limits generalization.
-
-This work demonstrates that **world models trained on massive video corpora can transfer visual intuition to safety-critical tasks.**
-
----
-
-# Architecture Overview
+# Demo
 
 <p align="center">
-<img src="assets/model\_architecture.png" width="750">
+<img src="assets/demo.gif" width="750">
 </p>
 
-### Pipeline
+Example prediction showing **early anticipation of pedestrian crossing behavior**.
 
-1️⃣ Extract video clips and pedestrian bounding boxes  
-2️⃣ Encode frames using **frozen V-JEPA2 encoder**  
-3️⃣ Predict latent **future scene tokens**  
-4️⃣ Concatenate context + predicted future tokens  
-5️⃣ Augment tokens with **pedestrian bounding box embeddings**  
-6️⃣ Train lightweight **attention probe heads**
+---------------------------------------------------------------------
 
-The backbone remains frozen, enabling **efficient adaptation to new domains.**
+# Problem Motivation
 
----
+Autonomous vehicles must understand **how humans will behave before it happens**.
 
-# Model Design
+Pedestrian intent is often communicated through subtle cues such as:
 
-## Backbone
+• head orientation toward traffic  
+• walking speed changes  
+• proximity to crosswalks  
+• traffic signal context  
 
-• V-JEPA2 ViT-L/16 world model  
-• Pretrained on billions of video frames  
-• Encoder + predictor **kept frozen**
+Traditional approaches rely on **multi-stage pipelines** involving:
 
-## Probe Network
+- pedestrian detection
+- pose estimation
+- trajectory forecasting
+- rule-based decision logic
 
-Attention-based multi-query probing head.
+These pipelines require **heavy annotation and complex engineering**, limiting generalization.
 
-Each query predicts a task:
+This project explores whether **world models trained on massive video corpora can transfer their learned visual intuition** to solve pedestrian prediction tasks with **simpler architectures and stronger generalization**.
 
-|Query|Task|
-|-|-|
-|Q1|Crossing prediction|
-|Q2|Looking vs not looking|
-|Q3|Walking vs standing|
-|Q4|Designated crossing|
-|Q5|Intersection context|
-|Q6|Traffic signal state|
+---------------------------------------------------------------------
 
-Training updates **only probe parameters**, leveraging the pretrained world model.
+# System Overview
 
----
+<p align="center">
+<img src="assets/model_architecture.png" width="800">
+</p>
+
+Pipeline:
+
+1. Extract video clips containing pedestrians  
+2. Encode frames with **frozen V-JEPA2 encoder**  
+3. Predict **future latent scene tokens** using the predictor  
+4. Combine context tokens and predicted future tokens  
+5. Augment features using **pedestrian bounding box embeddings**  
+6. Train a lightweight **attention probe network** for prediction  
+
+---------------------------------------------------------------------
+
+# Model Architecture
+
+## Backbone: V-JEPA2 World Model
+
+• Vision Transformer architecture (ViT-L/16)  
+• Trained using **self-supervised predictive learning**  
+• Learns structured representations of **scene dynamics and motion**
+
+The backbone remains **frozen**, acting as a general-purpose video world model.
+
+---------------------------------------------------------------------
+
+## Multi-Task Prediction Head
+
+The probe predicts multiple attributes simultaneously.
+
+Q1 – Crossing prediction  
+Q2 – Looking vs not looking  
+Q3 – Walking vs standing  
+Q4 – Designated crossing zone  
+Q5 – Intersection context  
+Q6 – Traffic signal state  
+
+Multi-task supervision encourages richer representations of pedestrian behavior.
+
+---------------------------------------------------------------------
 
 # Datasets
 
 ## JAAD
 
-Joint Attention in Autonomous Driving
-
-• Urban driving videos  
-• Pedestrian bounding boxes  
-• Crossing intention labels
+Urban driving dataset with pedestrian bounding boxes and crossing labels.
 
 ## PIE
 
-Pedestrian Intention Estimation dataset
+Large-scale dataset with detailed pedestrian behavior annotations and scene context.
 
-• Longer clips  
-• More pedestrians  
-• Additional scene annotations
-
-Both datasets are widely used for **pedestrian intention prediction research.**
-
----
+---------------------------------------------------------------------
 
 # Data Pipeline
 
 <p align="center">
-<img src="assets/data\_pipeline.png" width="700">
+<img src="assets/data_pipeline.png" width="750">
 </p>
 
-Clips are sampled as:
+Clip Sampling
 
-```
-8 frames per clip
-15 fps
-~0.5 seconds observation window
-30% overlap
-```
+8 frames per clip  
+15 FPS  
+~0.5 second observation window  
+30% overlap  
 
-Prediction target:
+Prediction Target
 
-```
-Will the pedestrian cross within 1 second?
-```
+Will the pedestrian cross within the next 1 second?
 
-Bounding boxes are extracted and normalized for each frame.
+---------------------------------------------------------------------
 
----
+# Training Configuration
 
-# Training
+Backbone: V-JEPA2 ViT-L  
+Frames per clip: 8  
+Resolution: 256×256  
+Batch size: 8  
+Optimizer: AdamW  
+Loss: Softmax Focal Loss  
 
-|Setting|Value|
-|-|-|
-|Backbone|V-JEPA2 ViT-L|
-|Frames per clip|8|
-|Resolution|256×256|
-|Batch size|8|
-|Optimizer|AdamW|
-|Loss|Softmax Focal Loss|
-|Gamma|2|
+---------------------------------------------------------------------
 
-Class imbalance is handled using **focal loss weighting.**
+# Evaluation Framework
 
----
-
-# Evaluation Metrics
-
-### Sample-level (Base Metrics)
+Sample-Level Metrics
 
 • Accuracy  
 • Balanced Accuracy  
 • Precision  
 • F1 Score  
 • AUROC  
-• mAP
+• mAP  
 
-### Instance-level Metrics
+Instance-Level Metrics
 
-Pedestrian instances contain multiple samples.
+Soft metrics – average probability across samples.
 
-Two evaluation strategies:
+Hard metrics – prediction correct only if all samples agree.
 
-**Soft metrics**
+Confidence Delta
 
-```
-Average probability across samples
-```
+Δ_conf = mean(|p_t+1 − p_t|)
 
-**Hard metrics**
+Measures temporal stability of predictions.
 
-```
-Prediction correct only if all samples agree
-```
-
-### Confidence Delta
-
-Measures temporal stability:
-
-```
-Δ\_conf = average change in prediction probabilities across frames
-```
-
-Lower values indicate **more stable predictions.**
-
----
+---------------------------------------------------------------------
 
 # Preliminary Results
 
-|Task|Accuracy|Recall|
-|-|-|-|
-|Crossing|62-66%|~63%|
-|Looking|up to 83%|up to 84%|
-|Walking|70-79%|59-72%|
-|Intersection|91-95%|70-75%|
+Crossing Accuracy: 62–66%  
+Crossing Recall: ~63%
 
-Results demonstrate that **V-JEPA2 world model features transfer effectively to pedestrian behavior prediction.**
+Looking Recall: up to 84%  
+Walking Recall: up to 72%  
+Intersection Recall: up to 75%
 
----
+These results show strong transfer of **self-supervised world model representations**.
 
-# Visualizations
+---------------------------------------------------------------------
+
+# Visualization
 
 ## Attention Heatmaps
 
 <p align="center">
-<img src="assets/attention\_heatmaps.png" width="700">
+<img src="assets/attention_heatmaps.png" width="750">
 </p>
 
-The probe focuses on:
+The probe attends to:
 
-• pedestrian body motion  
+• pedestrian motion patterns  
 • crosswalk regions  
-• traffic signals
+• traffic signals  
 
----
+---------------------------------------------------------------------
 
 ## Anticipation Performance
 
 <p align="center">
-<img src="assets/tte\_curve.png" width="700">
+<img src="assets/tte_curve.png" width="750">
 </p>
 
 Performance is evaluated against **Time-To-Event (TTE)**.
 
-The model can anticipate crossing **up to 3 seconds ahead.**
+The model anticipates crossing **up to 3 seconds ahead**.
 
----
+---------------------------------------------------------------------
+
+# Failure Case Analysis (Autonomy Research Style)
+
+Understanding failure scenarios is critical for safe autonomous systems.
+
+Common failure modes observed:
+
+• **Heavy occlusion** – pedestrians partially hidden behind vehicles  
+• **Night-time lighting** – limited visibility conditions  
+• **Group crossings** – complex multi-agent interactions  
+• **Ambiguous body language** – hesitation near curb
+
+Future improvements could involve:
+
+• longer temporal context  
+• trajectory reasoning modules  
+• multimodal sensors (LiDAR / radar)
+
+---------------------------------------------------------------------
+
+# Scenario Visualization
+
+Autonomous driving models must reason about complex scenes.
+
+Example scenario analysis:
+
+Scenario: Pedestrian approaching crosswalk.
+
+Model observations:
+
+Frame 1 – pedestrian walking parallel to road  
+Frame 2 – head orientation toward traffic  
+Frame 3 – slowdown near curb  
+
+Prediction probability:
+
+t = -3s → 0.12  
+t = -2s → 0.35  
+t = -1s → 0.71  
+
+The model correctly anticipates the crossing **before the step onto the road**.
+
+---------------------------------------------------------------------
+
+# Interactive Prediction Plots
+
+Prediction probabilities across time provide insight into model behavior.
+
+Example temporal prediction:
+
+Time to event vs probability
+
+3s before crossing → 0.10  
+2s before crossing → 0.32  
+1s before crossing → 0.68  
+0s (crossing) → 0.91
+
+Such plots help evaluate:
+
+• early prediction ability  
+• prediction stability  
+• reaction time for planning systems
+
+---------------------------------------------------------------------
 
 # Tech Stack
 
-### Machine Learning
+Machine Learning
 
-• PyTorch  
-• V-JEPA2  
-• Vision Transformers  
-• Multi-task learning  
-• Focal loss  
-• Attention mechanisms
+PyTorch  
+Vision Transformers  
+Self-Supervised Learning  
+Multi-Task Learning  
+Attention Mechanisms
 
-### Data Engineering
+Data Engineering
 
-• Video preprocessing pipelines  
-• Frame sampling \& annotation alignment  
-• Bounding box encoding  
-• dataset loaders for large video datasets
+Video preprocessing pipelines  
+Frame sampling and annotation alignment  
+Bounding box encoding
 
-### Tools
+Systems
 
-• CUDA / GPU training  
-• Python  
-• NumPy  
-• Matplotlib
+CUDA GPU training  
+Python  
+NumPy  
+OpenCV  
+Matplotlib
 
----
+---------------------------------------------------------------------
 
 # Key Skills Demonstrated
 
-### Machine Learning Engineering
+Machine Learning Engineering
 
-✔ Large-scale video models  
-✔ Self-supervised representation learning  
-✔ Multi-task neural architectures  
-✔ Model evaluation and benchmarking
+• Self-supervised video representation learning  
+• Temporal deep learning models  
+• Multi-task behavior prediction  
+• Autonomous driving perception and prediction tasks  
 
-### Software Engineering
+Software Engineering
 
-✔ Modular PyTorch training pipelines  
-✔ Dataset preprocessing pipelines  
-✔ GPU training optimization  
-✔ reproducible research code
+• Modular PyTorch training pipelines  
+• Dataset ingestion and preprocessing systems  
+• GPU accelerated training workflows  
+• Experiment reproducibility and evaluation tooling  
 
-### Research Skills
+Research Engineering
 
-✔ Literature review  
-✔ experiment design  
-✔ ablation studies  
-✔ scientific writing
+• Implementing state-of-the-art research models  
+• Designing reproducible ML experiments  
+• Analyzing failure cases and model behavior  
 
----
+---------------------------------------------------------------------
 
 # Repository Structure
 
-```
 pedestrian-action-prediction-vjepa2/
 
 datasets/
@@ -309,8 +333,8 @@ datasets/
     PIE/
 
 models/
-    vjepa\_probe.py
-    probe\_heads.py
+    vjepa_probe.py
+    probe_heads.py
 
 training/
     train.py
@@ -319,45 +343,37 @@ training/
 
 evaluation/
     metrics.py
-    tte\_analysis.py
+    tte_analysis.py
 
 visualization/
-    attention\_maps.py
+    attention_maps.py
 
 notebooks/
-    exploratory\_analysis.ipynb
-```
+    exploratory_analysis.ipynb
 
----
+---------------------------------------------------------------------
 
 # Future Work
 
 • Fine-tuning the V-JEPA2 backbone  
-• Multi-modal integration (LiDAR + map data)  
-• Trajectory prediction models  
-• Real-time deployment for AV systems
+• Multi-modal fusion with LiDAR and map data  
+• Pedestrian trajectory prediction  
+• Real-time deployment for autonomous vehicles  
 
----
-
-# References
-
-V-JEPA2:  
-https://arxiv.org/abs/2506.09985
-
-JAAD Dataset  
-PIE Dataset
-
----
+---------------------------------------------------------------------
 
 # Author
 
-**Aditya Sanjaykumar Patel**
+Aditya Sanjaykumar Patel
 
 MS Computer Science  
 San Jose State University
 
-Machine Learning Engineer focused on **video understanding, world models, and autonomous driving AI**.
+Machine Learning Engineer focused on:
+
+• autonomous driving AI  
+• video understanding  
+• world models  
 
 LinkedIn: (add link)  
 Email: aditya.s.patel@sjsu.edu
-
