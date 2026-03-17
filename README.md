@@ -117,7 +117,7 @@ Large-scale dataset with detailed pedestrian behavior annotations and scene cont
 # Data Pipeline
 
 <p align="center">
-<img src="assets/data_pipeline.png" width="750">
+<img src="assets/sampling_and_annotation.png" width="750">
 </p>
 
 Clip Sampling
@@ -137,14 +137,19 @@ Will the pedestrian cross within the next 1 second?
 
 Backbone: V-JEPA2 ViT-L  
 Frames per clip: 8  
+Frames per second: 15
 Resolution: 256×256  
-Batch size: 8  
+Batch size: 32
 Optimizer: AdamW  
 Loss: Softmax Focal Loss  
 
 ---------------------------------------------------------------------
 
 # Evaluation Framework
+
+<p align="center">
+<img src="assets/metrics_big.png" width="750">
+</p>
 
 Sample-Level Metrics
 
@@ -171,12 +176,8 @@ Measures temporal stability of predictions.
 
 # Preliminary Results
 
-Crossing Accuracy: 62–66%  
-Crossing Recall: ~63%
-
-Looking Recall: up to 84%  
-Walking Recall: up to 72%  
-Intersection Recall: up to 75%
+Crossing Accuracy: 80%  
+Crossing Recall: 70%
 
 These results show strong transfer of **self-supervised world model representations**.
 
@@ -328,28 +329,6 @@ Research Engineering
 
 pedestrian-action-prediction-vjepa2/
 
-datasets/
-    JAAD/
-    PIE/
-
-models/
-    vjepa_probe.py
-    probe_heads.py
-
-training/
-    train.py
-    losses.py
-    dataloader.py
-
-evaluation/
-    metrics.py
-    tte_analysis.py
-
-visualization/
-    attention_maps.py
-
-notebooks/
-    exploratory_analysis.ipynb
 
 ---------------------------------------------------------------------
 
@@ -374,6 +353,7 @@ Machine Learning Engineer focused on:
 • autonomous driving AI  
 • video understanding  
 • world models  
+• computer vision
 
-LinkedIn: (add link)  
-Email: aditya.s.patel@sjsu.edu
+LinkedIn: https://www.linkedin.com/in/adityapatel149
+Email: imadityapatel149@gmail.com
