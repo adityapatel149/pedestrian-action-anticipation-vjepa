@@ -46,6 +46,7 @@ Example prediction showing **early anticipation of pedestrian crossing behavior*
 ```bash
 pip install -r requirements.txt
 python evals/main.py --config configs/eval/vitl/jaad.yaml
+```
 ---------------------------------------------------------------------
 
 # Problem Motivation
