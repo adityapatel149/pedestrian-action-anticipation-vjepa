@@ -275,7 +275,7 @@ Pedestrian approaching road:
 ---
 
 ## 📁 Repository Structure
-
+```bash
 pedestrian-action-anticipation-vjepa/
 ├── assets/
 ├── configs/
@@ -293,7 +293,7 @@ pedestrian-action-anticipation-vjepa/
 ├── your_data/
 ├── README.md
 └── requirements.txt
-
+```
 ---
 
 ## 🔮 Future Work
