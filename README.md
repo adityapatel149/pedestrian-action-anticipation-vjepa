@@ -372,7 +372,7 @@ Research Engineering
 ---------------------------------------------------------------------
 
 # Repository Structure
-
+```bash
 pedestrian-action-anticipation-vjepa/
 ├── assets/                        # Figures used in the README/paper-style visuals
 ├── configs/                       # Evaluation and inference configs
@@ -391,7 +391,7 @@ pedestrian-action-anticipation-vjepa/
 ├── .gitignore
 ├── README.md
 └── requirements.txt
-
+```
 ---------------------------------------------------------------------
 
 # Future Work
