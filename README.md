@@ -13,11 +13,11 @@ The system predicts whether a pedestrian will **cross the road within the next 1
 
 ## 🚀 Key Contributions
 
-• Adapted Meta AI’s **V-JEPA2 world model** for pedestrian behavior prediction  
-• Built a **bounding-box aware video prediction system** for autonomous driving  
-• Analyzed **temporal evaluation metrics (TTE, confidence stability)** for early anticipation  
-• Developed an **end-to-end ML pipeline** for large-scale driving datasets (JAAD, PIE)  
-• Demonstrated **early prediction of pedestrian crossing up to 3 seconds ahead**
+- Adapted Meta AI’s **V-JEPA2 world model** for pedestrian behavior prediction  
+- Built a **bounding-box aware video prediction system** for autonomous driving  
+- Analyzed **temporal evaluation metrics (TTE, confidence stability)** for early anticipation  
+- Developed an **end-to-end ML pipeline** for large-scale driving datasets (JAAD, PIE)  
+- Demonstrated **early prediction of pedestrian crossing up to 3 seconds ahead**
 ---------------------------------------------------------------------
 
 # What This Project Demonstrates
