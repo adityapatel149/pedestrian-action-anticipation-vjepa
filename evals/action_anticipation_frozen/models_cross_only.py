@@ -15,9 +15,6 @@ class AttentiveClassifier(nn.Module):
     def __init__(
         self,
         cross_classes: dict,
-        action_classes: dict,
-        intersection_classes: dict,
-        signalized_classes: dict,
         embed_dim: int,
         num_heads: int,
         depth: int,
@@ -25,9 +22,6 @@ class AttentiveClassifier(nn.Module):
     ):
         super().__init__()
         self.num_cross_classes = len(cross_classes)
-        num_action_classes = len(action_classes)
-        num_intersection_classes = len(intersection_classes)
-        num_signalized_classes = len(signalized_classes)
 
         # Bounding Box Encoder, (x1,y1,x2,y2) -> same dim as encoder features
         self.bbox_encoder = nn.Linear(4, embed_dim)
@@ -37,7 +31,7 @@ class AttentiveClassifier(nn.Module):
         self.bbox_type = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.pooler = AttentivePooler(
-            num_queries=4,
+            num_queries=1,
             embed_dim=embed_dim,
             num_heads=num_heads,
             depth=depth,
@@ -45,9 +39,6 @@ class AttentiveClassifier(nn.Module):
         )
 
         self.cross_classifier = nn.Linear(embed_dim, self.num_cross_classes, bias=True)
-        self.action_classifier = nn.Linear(embed_dim, num_action_classes, bias=True)
-        self.intersection_classifier = nn.Linear(embed_dim, num_intersection_classes, bias=True)
-        self.signalized_classifier = nn.Linear(embed_dim, num_signalized_classes, bias=True)
 
     def forward(self, x, bboxes=None):
         if torch.isnan(x).any():
@@ -61,21 +52,14 @@ class AttentiveClassifier(nn.Module):
             x = torch.cat([x, bbox_embed], dim=1)       # [B, N+T, D]
 
         # Temporal attention pooling via learned queries
-        # With num_queries=4, output is [B, 4, D]
         x = self.pooler(x)
 
-        x_cross, x_action, x_intersection, x_signalized = (
-            x[:, 0, :],
-            x[:, 1, :],
-            x[:, 2, :],
-            x[:, 3, :],
+        x_cross = (
+            x[:, 0, :]
         )
 
         return dict(
             cross=self.cross_classifier(x_cross),
-            action=self.action_classifier(x_action),
-            intersection=self.intersection_classifier(x_intersection),
-            signalized=self.signalized_classifier(x_signalized),
         )
 
 
@@ -127,17 +111,11 @@ def init_classifier(
     num_blocks: int,
     device: torch.device,
     num_classifiers: int,
-    action_classes: dict,
     cross_classes: dict,
-    intersection_classes: dict,
-    signalized_classes: dict,
 ):
     classifiers = [
         AttentiveClassifier(
             cross_classes=cross_classes,
-            action_classes=action_classes,
-            intersection_classes=intersection_classes,
-            signalized_classes=signalized_classes,
             embed_dim=embed_dim,
             num_heads=num_heads,
             depth=num_blocks,

@@ -1,6 +1,6 @@
 nodes: 1
 tasks_per_node: 1
-cpus_per_task: 2
+cpus_per_task: 1
 tag: pie-vitl16
 eval_name: action_anticipation_frozen
 eval_file: eval_all
@@ -25,7 +25,7 @@ experiment:
     frames_per_clip: 8
     frames_per_second: 15
     motion_shift: false
-    num_workers: 2
+    num_workers: 0
     pin_memory: true
     random_resize_scale:
     - 0.4

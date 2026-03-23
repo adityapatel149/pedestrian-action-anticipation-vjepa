@@ -49,7 +49,6 @@ pp = pprint.PrettyPrinter(indent=4)
 
 LABEL_KEYS = ("cross",)
 
-
 def main(args_eval, resume_preempt: bool = False):
     test_only = args_eval.get("test_only", False)
     if test_only:
@@ -227,6 +226,7 @@ def main(args_eval, resume_preempt: bool = False):
         num_workers=num_workers,
         pin_mem=pin_mem,
         persistent_workers=False,
+        label_keys=LABEL_KEYS,
     )
     ipe = train_loader.num_batches
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
@@ -248,6 +248,7 @@ def main(args_eval, resume_preempt: bool = False):
         num_workers=num_workers,
         pin_mem=pin_mem,
         persistent_workers=False,
+        label_keys=LABEL_KEYS,
     )
     val_ipe = val_loader.num_batches
     logger.info(f"Val dataloader created... iterations per epoch: {val_ipe}")

@@ -22,7 +22,8 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel
 import torch.nn.functional as F
 import csv 
-
+from pathlib import Path
+import math
 
 from evals.action_anticipation_frozen.dataloader import filter_annotations, init_data
 from evals.action_anticipation_frozen.losses import sigmoid_focal_loss, softmax_focal_loss
@@ -270,6 +271,7 @@ def main(args_eval, resume_preempt: bool = False):
         num_workers=num_workers,
         pin_mem=pin_mem,
         persistent_workers=False,
+        label_keys=LABEL_KEYS,
     )
     ipe = train_loader.num_batches
     logger.info(f"Dataloader created... iterations per epoch: {ipe}")
@@ -291,6 +293,7 @@ def main(args_eval, resume_preempt: bool = False):
         num_workers=num_workers,
         pin_mem=pin_mem,
         persistent_workers=False,
+        label_keys=LABEL_KEYS,
     )
     val_ipe = val_loader.num_batches
     logger.info(f"Val dataloader created... iterations per epoch: {val_ipe}")
@@ -338,6 +341,9 @@ def main(args_eval, resume_preempt: bool = False):
             out_dir=out_dir,
             split_name="val",
             rank=rank,
+            save_attention=True,
+            attention_sweep_idx=0,
+            max_attention_samples=200,
         )
         return
 
@@ -495,7 +501,8 @@ def train_one_epoch(
 
             clips = udata[0].to(device)
             bboxes = udata[1].to(device)
-            labels_raw = {"cross": udata[2], "action": udata[3], "intersection": udata[4], "signalized": udata[5]}
+            #labels_raw = {"cross": udata[2], "action": udata[3], "intersection": udata[4], "signalized": udata[5]}
+            labels_raw = {k: udata[2 + i] for i, k in enumerate(LABEL_KEYS)}
             anticipation_times = udata[-1].to(device)
             
             labels = _remap_labels(encoders, labels_raw, device)
@@ -596,7 +603,8 @@ def validate(
             
             clips = udata[0].to(device)
             bboxes = udata[1].to(device)
-            labels_raw = {"cross": udata[2], "action": udata[3], "intersection": udata[4], "signalized": udata[5]}
+            #labels_raw = {"cross": udata[2], "action": udata[3], "intersection": udata[4], "signalized": udata[5]}
+            labels_raw = {k: udata[2 + i] for i, k in enumerate(LABEL_KEYS)}
             anticipation_times = udata[-1].to(device)
             
             labels = _remap_labels(encoders, labels_raw, device)
@@ -665,6 +673,9 @@ def test_inference(
     out_dir,
     split_name="test",
     rank=0,
+    save_attention=True,
+    attention_sweep_idx=0,
+    max_attention_samples=None,
 ):
     """
     Runs inference for each classifier sweep and writes separate CSVs.
@@ -677,7 +688,13 @@ def test_inference(
     - data_loader: DataLoader yielding batches of the form
         (clips, bboxes, cross, action, intersection, signalized, anticipation_time)
     """
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)    
+    
+    attention_dir = os.path.join(out_dir, "attention_artifacts")
+    if save_attention and rank == 0:
+        os.makedirs(attention_dir, exist_ok=True)
+
+    saved_attention_count = 0
 
     model.eval()
     for c in classifiers:
@@ -696,13 +713,9 @@ def test_inference(
             with torch.cuda.amp.autocast(dtype=torch.bfloat16, enabled=use_bfloat16):
                 clips = udata[0].to(device)
                 bboxes = udata[1].to(device)
-                # assume loader yields: (clips, bboxes, cross, action, intersection, signalized, anticipation_time)
-                labels_raw = {
-                    "cross": udata[2],
-                    "action": udata[3],
-                    "intersection": udata[4],
-                    "signalized": udata[5],
-                }
+                
+                # labels_raw = {"cross": udata[2], "action": udata[3], "intersection": udata[4], "signalized": udata[5]}
+                labels_raw = {k: udata[2 + i] for i, k in enumerate(LABEL_KEYS)}
                 anticipation_times = udata[-1].to(device)
 
                 labels = _remap_labels(encoders, labels_raw, device)  # remapped y_true per head
@@ -720,6 +733,37 @@ def test_inference(
                 # run each sweep
                 for j, clf in enumerate(classifiers):
                     out = clf(features, bboxes=bboxes)  # out is dict with possible keys in HEADS
+                    if save_attention and rank == 0 and j == attention_sweep_idx:
+                        attn = _get_cross_attn_tensor(clf)
+                        if attn is None:
+                            raise RuntimeError(
+                                "Cross-attention was not captured. Check CrossAttention.last_attn in modules.py."
+                            )
+
+                        if max_attention_samples is None or saved_attention_count < max_attention_samples:
+                            B = features.shape[0]
+                            for i in range(B):
+                                if max_attention_samples is not None and saved_attention_count >= max_attention_samples:
+                                    break
+
+                                save_path = os.path.join(
+                                    attention_dir,
+                                    f"{split_name}_batch{batch_idx:05d}_sample{i:02d}_sweep{j}.pt"
+                                )
+
+                                _save_attention_artifact(
+                                    save_path=save_path,
+                                    attn=attn,
+                                    features=features,
+                                    clips=clips,
+                                    bboxes=bboxes,
+                                    anticipation_times=anticipation_times,
+                                    logits_dict=out,
+                                    model=model,
+                                    batch_idx=batch_idx,
+                                    sample_idx=i,
+                                )
+                                saved_attention_count += 1
 
                     # Determine header when first encountering this sweep
                     if not header_written[j]:
@@ -792,6 +836,66 @@ def test_inference(
                 pass
 
     logger.info(f"[test] Wrote {num_sweeps} CSV(s) to: {out_dir}")
+
+
+def _unwrap_ddp(m):
+    return m.module if hasattr(m, "module") else m
+
+
+def _get_cross_attn_tensor(clf):
+    clf = _unwrap_ddp(clf)
+    return clf.pooler.cross_attention_block.xattn.last_attn
+
+def _save_attention_artifact(
+    save_path,
+    attn,
+    features,
+    bboxes,
+    anticipation_times,
+    logits_dict,
+    model,
+    batch_idx,
+    sample_idx,
+    clips,   
+):
+    attn_mean = attn.mean(dim=1).mean(dim=1)
+
+    num_bbox_tokens = bboxes.shape[1]
+    num_total_tokens = attn_mean.shape[-1]
+    num_video_tokens = num_total_tokens - num_bbox_tokens
+
+    video_attn = attn_mean[:, :num_video_tokens]
+    bbox_attn = attn_mean[:, num_video_tokens:]
+
+    grid = model.grid_size if hasattr(model, "grid_size") else _unwrap_ddp(model).grid_size
+    patches_per_frame = grid * grid
+
+    if num_video_tokens % patches_per_frame != 0:
+        raise RuntimeError(
+            f"num_video_tokens={num_video_tokens} not divisible by patches_per_frame={patches_per_frame}"
+        )
+
+    token_frames = num_video_tokens // patches_per_frame
+    heatmaps = video_attn.reshape(attn.shape[0], token_frames, grid, grid)
+
+    sample = {
+        "batch_idx": batch_idx,
+        "sample_idx": sample_idx,
+        "anticipation_time": float(anticipation_times[sample_idx].item()),
+        "heatmaps": heatmaps[sample_idx].detach().cpu(),
+        "bbox_attention": bbox_attn[sample_idx].detach().cpu(),
+        "raw_cross_attn": attn[sample_idx].detach().cpu(),
+        "features_shape": tuple(features.shape),
+        "grid_size": grid,
+        "patches_per_frame": patches_per_frame,
+        "token_frames": token_frames,
+        "num_video_tokens": num_video_tokens,
+        "num_bbox_tokens": num_bbox_tokens,
+        "logits": {k: v[sample_idx].detach().cpu() for k, v in logits_dict.items() if v is not None},
+        "clip": clips[sample_idx].detach().cpu(),   # [C, T, H, W]
+        "bboxes": bboxes[sample_idx].detach().cpu(), # optional, very useful
+    }
+    torch.save(sample, save_path)
 # ---------------------------- checkpoint I/O ------------------------------ #
 
 def load_checkpoint(device, r_path, classifiers, opt, scaler):

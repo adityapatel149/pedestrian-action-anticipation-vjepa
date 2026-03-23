@@ -81,7 +81,28 @@ def process_main(args, rank, fname, world_size, devices):
     world_size, rank = init_distributed(rank_and_world_size=(rank, world_size))
     logger.info(f"Running... (rank: {rank}/{world_size})")
 
-    # Launch the eval with loaded config
+
+################################################### ADDED THIS TO RUN LOCALLY ON WINDOWS ON SINGLE DEVICE ########################
+
+
+    import torch.distributed as dist
+    import tempfile
+
+    temp_dir = tempfile.gettempdir()
+    init_file = os.path.join(temp_dir, "shared_init_file")
+
+    dist.init_process_group(
+        backend="gloo",  # use 'nccl' only if running on GPU with compatible setup
+        init_method=f"file://{init_file}",
+        rank=0,
+        world_size=1
+    )
+
+
+##################################################################################################################################
+    
+
+# Launch the eval with loaded config
     eval_main(params["eval_name"], params["eval_file"], args_eval=params)
 
 

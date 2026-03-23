@@ -107,7 +107,7 @@ class decode_videos_to_clips(wds.PipelineStage):
         transform=None,
         anticipation_time_sec=(1.0, 1.0),    # kept for compatibility; ignored
         anticipation_point=(0.25, 0.75),     # kept for compatibility; ignored
-        label_keys=("cross"),
+        label_keys=("cross",),
         framewise_bboxes=None,
     ):
         self.annotations = annotations
@@ -337,7 +337,7 @@ def filter_annotations(
     base_path: str,
     train_annotations_path: str,
     val_annotations_path: str,
-    label_keys=("cross"),
+    label_keys=("cross",),
 ):
     """
     Requires columns: video_id, start_frame, stop_frame, and {label}_class per label key.
@@ -416,10 +416,13 @@ def get_video_wds_dataset(
     num_workers=1,
     persistent_workers=True,
     pin_memory=True,
+    label_keys = ("cross",),
 ):
     assert input_shards is not None
     _, num_shards = get_dataset_size(input_shards)
     logging.info(f"Total number of shards across all data is num_shards={num_shards}")
+    
+    tuple_fields = ["video", "bboxes", *label_keys, "anticipation_time"]
 
     epoch = SharedEpoch(epoch=epoch)
     pipeline = [
@@ -427,7 +430,7 @@ def get_video_wds_dataset(
         split_by_node(rank=rank, world_size=world_size),
         wds.split_by_worker,
         video_decoder,
-        wds.to_tuple("video", "bboxes", "cross", "anticipation_time"),
+        wds.to_tuple(*tuple_fields),
         wds.batched(batch_size, partial=True, collation_fn=torch.utils.data.default_collate),
     ]
     dataset = wds.DataPipeline(*pipeline)
@@ -493,6 +496,7 @@ def make_webvid(
         persistent_workers=persistent_workers,
         pin_memory=pin_memory,
         training=training,
+        label_keys=label_keys,
     )
 
     datainfo.dataloader.num_batches = num_clips // max(1, (world_size * batch_size))

@@ -58,6 +58,7 @@ def init_data(
     motion_shift=False,
     anticipation_point=[0.1, 0.1],
     framewise_bboxes_csv: str | None = None,
+    label_keys=("cross",),
 ):
     transform = make_transforms(
         training=training,
@@ -100,6 +101,7 @@ def init_data(
         pin_memory=pin_mem,
         anticipation_point=anticipation_point,
         framewise_bboxes_csv=framewise_bboxes_csv,
+        label_keys=label_keys
     )
 
     if training and rank == 0:
