@@ -4,6 +4,7 @@ your_folder
 your_pie_root_dir
 temp
 yolo*
+output*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
