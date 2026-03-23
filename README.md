@@ -1,31 +1,47 @@
 
-# Pedestrian Action Prediction with V-JEPA2
-
 ## Demo
 
-Example predictions showing **early anticipation of pedestrian crossing behavior**.
+Examples showing **early anticipation of pedestrian crossing behavior**.
 
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <video src="https://github.com/user-attachments/assets/59a3509c-674a-44c9-9b75-2eaffd23007b" controls width="100%"></video>
+      <br>
+      <sub><b>Example 1:</b> Early crossing anticipation in urban traffic</sub>
+    </td>
+    <td align="center" width="50%">
+      <video src="https://github.com/user-attachments/assets/21df32f4-e365-455f-817b-56ad942497b3" controls width="100%"></video>
+      <br>
+      <sub><b>Example 2:</b> Pedestrian intent prediction before motion onset</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <video src="https://github.com/user-attachments/assets/0a8a0edb-e944-496a-a7f7-c3d0f5ba7453" controls width="100%"></video>
+      <br>
+      <sub><b>Example 3:</b> Anticipating crossing under complex scene dynamics</sub>
+    </td>
+    <td align="center" width="50%">
+      <video src="https://github.com/user-attachments/assets/1f2f1fec-f7ab-4b03-b326-2a19366afedd" controls width="100%"></video>
+      <br>
+      <sub><b>Example 4:</b> Robust prediction across varied pedestrian behavior</sub>
+    </td>
+  </tr>
+</table>
 
-https://github.com/user-attachments/assets/59a3509c-674a-44c9-9b75-2eaffd23007b
+> **Note:** GitHub README does not reliably support `autoplay` for embedded videos, so viewers will usually need to press play manually.
 
+---
 
-
-https://github.com/user-attachments/assets/21df32f4-e365-455f-817b-56ad942497b3
-
-
-
-https://github.com/user-attachments/assets/0a8a0edb-e944-496a-a7f7-c3d0f5ba7453
-
-
-
-https://github.com/user-attachments/assets/1f2f1fec-f7ab-4b03-b326-2a19366afedd
-
-
-### Self-Supervised World Models for Autonomous Driving
+## Self-Supervised World Models for Autonomous Driving
 
 🚗 Predicting pedestrian crossing behavior **before it happens**.
 
-This project investigates how **Meta AI’s V-JEPA2 world model** can be adapted to **pedestrian behavior prediction for autonomous driving systems**.
+This project explores how **Meta AI’s V-JEPA2 world model** can be adapted for **pedestrian action prediction in autonomous driving**.  
+The goal is to anticipate whether a pedestrian is likely to cross the road **before the action occurs**, enabling safer and more proactive planning in real-world driving systems.
+
+By leveraging **self-supervised video representation learning**, this work investigates how world models can capture pedestrian intent, motion cues, and scene context without relying entirely on large-scale manual annotation.
 
 Instead of relying on complex pipelines (pose estimation → trajectory models → rule engines), this work explores a **world-model-based approach** that leverages **self-supervised video representations trained on massive datasets** to anticipate human actions.
 
