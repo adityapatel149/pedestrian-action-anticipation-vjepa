@@ -240,7 +240,7 @@ trained with different learning rates.
 -   Good balance between performance and stability
 
 
-#### Which Sweep to Use**
+#### Which Sweep to Use
 
 -   Use Sweep 0 for best overall performance
 -   Use Sweep 1 for more stable and conservative predictions
