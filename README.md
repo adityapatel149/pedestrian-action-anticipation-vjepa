@@ -219,34 +219,34 @@ probabilities.
 trained with different learning rates.
 
 
-**Strengths of Each Sweep**
+#### Strengths of Each Sweep
 
-Sweep 0 (Best Overall Performance)
+**Sweep 0 (Best Overall Performance)**
 
 -   Highest AUC, accuracy, and F1 score
 -   Strongest performance across soft metrics
 -   Best general-purpose model for prediction quality
 
-Sweep 1 (Most Stable and Conservative)
+**Sweep 1 (Most Stable and Conservative)**
 
 -   Best performance on all hard metrics
 -   Lowest conf_delta_max indicating stable predictions
 -   More conservative behavior under strict evaluation
 
-Sweep 2 (Best Ranking and Temporal Smoothness)
+**Sweep 2 (Best Ranking and Temporal Smoothness)**
 
 -   Highest mAP (best ranking performance)
 -   Lowest conf_delta_avg indicating smooth temporal predictions
 -   Good balance between performance and stability
 
 
-**Which Sweep to Use**
+#### Which Sweep to Use**
 
 -   Use Sweep 0 for best overall performance
 -   Use Sweep 1 for more stable and conservative predictions
 -   Use Sweep 2 for smoother temporal predictions and better ranking
 
-**Inference Usage**
+#### Inference Usage
 
 You can select the sweep during inference using:
 ```bash
@@ -420,11 +420,13 @@ San Jose State University
 
 Machine Learning Engineer focused on:
 
-• autonomous driving AI  
-• video understanding  
-• world models  
-• computer vision
+- autonomous driving AI  
+- video understanding  
+- world models  
+- computer vision
 
 LinkedIn: https://www.linkedin.com/in/adityapatel149
+
 Portfolio: https://adityapatel149.github.io
+
 Email: imadityapatel149@gmail.com
