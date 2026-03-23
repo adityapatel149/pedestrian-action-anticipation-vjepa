@@ -1,6 +1,26 @@
 
 # Pedestrian Action Prediction with V-JEPA2
 
+## Demo
+
+Example predictions showing **early anticipation of pedestrian crossing behavior**.
+
+
+https://github.com/user-attachments/assets/59a3509c-674a-44c9-9b75-2eaffd23007b
+
+
+
+https://github.com/user-attachments/assets/21df32f4-e365-455f-817b-56ad942497b3
+
+
+
+https://github.com/user-attachments/assets/0a8a0edb-e944-496a-a7f7-c3d0f5ba7453
+
+
+
+https://github.com/user-attachments/assets/1f2f1fec-f7ab-4b03-b326-2a19366afedd
+
+
 ### Self-Supervised World Models for Autonomous Driving
 
 🚗 Predicting pedestrian crossing behavior **before it happens**.
@@ -31,21 +51,28 @@ This system mirrors a **real-world autonomy stack component**, where predicting 
 • Developing **evaluation frameworks for autonomous driving prediction tasks**
 
 ---------------------------------------------------------------------
-
-# Demo
-
-<p align="center">
-<img src="assets/demo.gif" width="750">
-</p>
-
-Example prediction showing **early anticipation of pedestrian crossing behavior**.
-
----------------------------------------------------------------------
 ## Quick Start
+To run inference on a video without annotations:
 
 ```bash
+python .\video_inference.py `
+    --config configs/inference/vitl/pie.yaml `
+    --classifier-ckpt your_folder/evals/vitl/pie/action_anticipation_frozen/pie-vitl16/latest.pt `
+    --output output.mp4 `
+    --video path/to/your/test.mp4 `
+    --detector-conf 0.15 `
+    --max-boxes 10 `
+    --detector yolo26n.pt `
+    --tracker botsort.yaml `
+    --anticipation-time `
+    --sweep-idx 1
+
+```
+
+To run test evaluation on PIE benchmark dataset:
+```bash
 pip install -r requirements.txt
-python evals/main.py --config configs/eval/vitl/jaad.yaml
+python evals/main.py --config configs/inference/vitl/pie.yaml
 ```
 ---------------------------------------------------------------------
 
@@ -206,10 +233,11 @@ Measures temporal stability of predictions.
 ---------------------------------------------------------------------
 # Results
 
-### Core Performance
+### Core Performance on PIE test split
 
-• Crossing Accuracy: **80%**  
-• Crossing Recall: **70%**
+• Crossing Accuracy: **86%**  
+• Crossing F1 score: **80%**
+• Crossing AUC: **92%**
 
 ### Key Observations
 
