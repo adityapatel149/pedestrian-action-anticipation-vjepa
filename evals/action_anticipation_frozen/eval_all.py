@@ -342,7 +342,7 @@ def main(args_eval, resume_preempt: bool = False):
             split_name="val",
             rank=rank,
             save_attention=True,
-            attention_sweep_idx=0,
+            attention_sweep_idx=1,
             max_attention_samples=200,
         )
         return

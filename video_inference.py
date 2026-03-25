@@ -9,6 +9,7 @@ from typing import Deque, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
+import onnxruntime as ort
 import torch
 import torch.nn.functional as F
 import yaml
@@ -30,6 +31,445 @@ class Detection:
 class OverlayPrediction:
     track_id: int
     cross_prob: float
+
+
+def get_model_format(path: str) -> str:
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".pt":
+        return "pt"
+    if ext == ".onnx":
+        return "onnx"
+    if ext == ".engine":
+        return "engine"
+    raise ValueError(f"Unsupported model extension: {ext} for {path}")
+
+
+def load_runtime_config(config_path: str) -> Dict:
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    args_pretrain = cfg["model_kwargs"]
+    args_model = args_pretrain["pretrain_kwargs"]
+    args_wrapper = args_pretrain["wrapper_kwargs"]
+    args_exp = cfg["experiment"]
+    args_classifier = args_exp["classifier"]
+    args_data = args_exp["data"]
+    args_opt = args_exp["optimization"]
+
+    return {
+        "cfg": cfg,
+        "args_pretrain": args_pretrain,
+        "args_model": args_model,
+        "args_wrapper": args_wrapper,
+        "args_exp": args_exp,
+        "args_classifier": args_classifier,
+        "args_data": args_data,
+        "args_opt": args_opt,
+        "data_base_path": args_data.get("base_path"),
+        "frames_per_clip": int(args_data["frames_per_clip"]),
+        "frames_per_second": float(args_data["frames_per_second"]),
+        "resolution": int(args_data.get("resolution", 224)),
+        "num_probe_blocks": int(args_classifier.get("num_probe_blocks", 1)),
+        "num_heads": int(args_classifier["num_heads"]),
+        "num_classifiers": len(args_opt["multihead_kwargs"]),
+    }
+
+
+class BaseRunner:
+    def preprocess_frame(self, frame_bgr: np.ndarray) -> np.ndarray:
+        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        rgb = cv2.resize(rgb, (self.resolution, self.resolution), interpolation=cv2.INTER_LINEAR)
+        return np.transpose(rgb, (2, 0, 1)).astype(np.float32) / 255.0
+
+    def build_bbox_tensor(self, detections: List[Detection]) -> torch.Tensor:
+        if len(detections) == 0:
+            return torch.zeros((0, self.frames_per_clip, 4), dtype=torch.float32)
+
+        arr = np.zeros((len(detections), self.frames_per_clip, 4), dtype=np.float32)
+        for i, det in enumerate(detections):
+            arr[i, :, :] = np.asarray(det.track_sequence, dtype=np.float32)  # type: ignore[attr-defined]
+        return torch.from_numpy(arr)
+
+
+class PyTorchRunner(BaseRunner):
+    def __init__(
+        self,
+        config_path: str,
+        encoder_model: str,
+        classifier_model: str,
+        sweep_idx: int = 0,
+        device: str = "cuda:0",
+        use_fp16: bool = True,
+    ):
+        runtime_cfg = load_runtime_config(config_path)
+
+        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
+        self.use_fp16 = use_fp16 and self.device.type == "cuda"
+
+        self.data_base_path = runtime_cfg["data_base_path"]
+        self.frames_per_clip = runtime_cfg["frames_per_clip"]
+        self.frames_per_second = runtime_cfg["frames_per_second"]
+        self.resolution = runtime_cfg["resolution"]
+        self.num_probe_blocks = runtime_cfg["num_probe_blocks"]
+        self.num_heads = runtime_cfg["num_heads"]
+        self.num_classifiers = runtime_cfg["num_classifiers"]
+
+        args_pretrain = runtime_cfg["args_pretrain"]
+        args_model = runtime_cfg["args_model"]
+        args_wrapper = runtime_cfg["args_wrapper"]
+
+        cross_classes = {0: 0, 1: 1}
+        action_classes = {0: 0, 1: 1}
+        intersection_classes = {i: i for i in range(5)}
+        signalized_classes = {i: i for i in range(4)}
+
+        self.encoder = init_module(
+            module_name=args_pretrain["module_name"],
+            frames_per_clip=self.frames_per_clip,
+            frames_per_second=self.frames_per_second,
+            resolution=self.resolution,
+            checkpoint=encoder_model,
+            model_kwargs=args_model,
+            wrapper_kwargs=args_wrapper,
+            device=self.device,
+        )
+        self.encoder.eval()
+        for p in self.encoder.parameters():
+            p.requires_grad_(False)
+
+        classifiers = init_classifier(
+            embed_dim=self.encoder.embed_dim,
+            num_heads=self.num_heads,
+            cross_classes=cross_classes,
+            action_classes=action_classes,
+            intersection_classes=intersection_classes,
+            signalized_classes=signalized_classes,
+            num_blocks=self.num_probe_blocks,
+            device=self.device,
+            num_classifiers=self.num_classifiers,
+        )
+
+        checkpoint = robust_checkpoint_loader(classifier_model, map_location=torch.device("cpu"))
+        if "classifiers" not in checkpoint:
+            raise KeyError("Expected classifier checkpoint with key 'classifiers'.")
+        if sweep_idx >= len(checkpoint["classifiers"]):
+            raise IndexError(
+                f"sweep_idx={sweep_idx} out of range for {len(checkpoint['classifiers'])} sweeps"
+            )
+
+        self.classifier = classifiers[sweep_idx]
+        state_dict = checkpoint["classifiers"][sweep_idx]
+        if any(k.startswith("module.") for k in state_dict.keys()):
+            state_dict = {k[len("module."):]: v for k, v in state_dict.items()}
+        msg = self.classifier.load_state_dict(state_dict, strict=True)
+        print(f"[PyTorchRunner] Loaded sweep {sweep_idx}: {msg}")
+
+        self.classifier.eval()
+        for p in self.classifier.parameters():
+            p.requires_grad_(False)
+
+        if hasattr(self.classifier, "pooler") and hasattr(self.classifier.pooler, "use_activation_checkpointing"):
+            self.classifier.pooler.use_activation_checkpointing = False
+
+        del checkpoint
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+
+    @torch.inference_mode()
+    def infer_preprocessed(
+        self,
+        clip_cthw: np.ndarray,
+        detections: List[Detection],
+        anticipation_time_sec: float = 1.0,
+    ) -> List[OverlayPrediction]:
+        if len(detections) == 0:
+            return []
+
+        clip = torch.from_numpy(clip_cthw).unsqueeze(0).to(self.device, non_blocking=True)
+        bboxes = self.build_bbox_tensor(detections).to(self.device, non_blocking=True)
+        anticipation_times = torch.tensor([anticipation_time_sec], dtype=torch.float32, device=self.device)
+
+        with torch.cuda.amp.autocast(enabled=self.use_fp16, dtype=torch.float16):
+            features = self.encoder(clip, anticipation_times)
+            features = features.expand(len(detections), -1, -1)
+            out = self.classifier(features, bboxes=bboxes)
+            cross_probs = F.softmax(out["cross"], dim=-1)[..., 1]
+
+        probs = cross_probs.detach().float().cpu().numpy().tolist()
+        return [
+            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
+            for det, prob in zip(detections, probs)
+        ]
+
+
+class ONNXRunner(BaseRunner):
+    def __init__(
+        self,
+        config_path: str,
+        encoder_model: str,
+        classifier_model: str,
+        device: str = "cuda:0",
+    ):
+        runtime_cfg = load_runtime_config(config_path)
+
+        self.data_base_path = runtime_cfg["data_base_path"]
+        self.frames_per_clip = runtime_cfg["frames_per_clip"]
+        self.frames_per_second = runtime_cfg["frames_per_second"]
+        self.resolution = runtime_cfg["resolution"]
+
+        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
+        use_cuda = self.device.type == "cuda"
+
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if use_cuda else ["CPUExecutionProvider"]
+        self.encoder_sess = ort.InferenceSession(encoder_model, providers=providers)
+        self.classifier_sess = ort.InferenceSession(classifier_model, providers=providers)
+
+        print(f"[ONNXRunner] Providers: {self.encoder_sess.get_providers()}")
+
+    @torch.inference_mode()
+    def infer_preprocessed(
+        self,
+        clip_cthw: np.ndarray,
+        detections: List[Detection],
+        anticipation_time_sec: float = 1.0,
+    ) -> List[OverlayPrediction]:
+        if len(detections) == 0:
+            return []
+
+        clip = np.expand_dims(clip_cthw.astype(np.float32), axis=0)
+        ant = np.array([anticipation_time_sec], dtype=np.float32)
+
+        features = self.encoder_sess.run(
+            ["features"],
+            {"clip": clip, "anticipation_times": ant},
+        )[0]
+
+        features = np.repeat(features, repeats=len(detections), axis=0)
+        bboxes = self.build_bbox_tensor(detections).numpy().astype(np.float32)
+
+        cross, action, intersection, signalized = self.classifier_sess.run(
+            ["cross", "action", "intersection", "signalized"],
+            {"features": features, "bboxes": bboxes},
+        )
+
+        cross_probs = F.softmax(torch.from_numpy(cross), dim=-1)[..., 1].numpy().tolist()
+        return [
+            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
+            for det, prob in zip(detections, cross_probs)
+        ]
+
+class TensorRTRunner(BaseRunner):
+    def __init__(
+        self,
+        config_path: str,
+        encoder_model: str,
+        classifier_model: str,
+        device: str = "cuda:0",
+    ):
+        import tensorrt as trt
+
+        runtime_cfg = load_runtime_config(config_path)
+
+        self.data_base_path = runtime_cfg["data_base_path"]
+        self.frames_per_clip = runtime_cfg["frames_per_clip"]
+        self.frames_per_second = runtime_cfg["frames_per_second"]
+        self.resolution = runtime_cfg["resolution"]
+
+        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
+        if self.device.type != "cuda":
+            raise RuntimeError("TensorRTRunner requires CUDA.")
+
+        self.trt = trt
+        self.logger = trt.Logger(trt.Logger.WARNING)
+
+        self.encoder_engine = self._load_engine(encoder_model)
+        self.classifier_engine = self._load_engine(classifier_model)
+
+        self.encoder_context = self.encoder_engine.create_execution_context()
+        self.classifier_context = self.classifier_engine.create_execution_context()
+
+        if self.encoder_context is None:
+            raise RuntimeError(f"Failed to create execution context for {encoder_model}")
+        if self.classifier_context is None:
+            raise RuntimeError(f"Failed to create execution context for {classifier_model}")
+
+        print("[TensorRTRunner] Loaded TensorRT engines successfully")
+
+    def _load_engine(self, engine_path: str):
+        with open(engine_path, "rb") as f, self.trt.Runtime(self.logger) as runtime:
+            engine = runtime.deserialize_cuda_engine(f.read())
+        if engine is None:
+            raise RuntimeError(f"Failed to load TensorRT engine: {engine_path}")
+        return engine
+
+    def _torch_dtype_from_trt(self, dtype):
+        import tensorrt as trt
+
+        mapping = {
+            trt.DataType.FLOAT: torch.float32,
+            trt.DataType.HALF: torch.float16,
+            trt.DataType.INT8: torch.int8,
+            trt.DataType.INT32: torch.int32,
+            trt.DataType.BOOL: torch.bool,
+            # INT64 not always supported as network tensor dtype, but keep here if seen
+            getattr(trt.DataType, "INT64", None): torch.int64,
+        }
+        if dtype not in mapping or mapping[dtype] is None:
+            raise TypeError(f"Unsupported TensorRT dtype: {dtype}")
+        return mapping[dtype]
+
+    def _infer_engine(self, engine, context, inputs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+        bindings_torch: Dict[str, torch.Tensor] = {}
+
+        stream = torch.cuda.current_stream(device=self.device)
+
+        # Set input shapes and create CUDA input tensors
+        for i in range(engine.num_io_tensors):
+            name = engine.get_tensor_name(i)
+            mode = engine.get_tensor_mode(name)
+
+            if mode == self.trt.TensorIOMode.INPUT:
+                if name not in inputs:
+                    raise KeyError(f"Missing required input tensor '{name}'")
+
+                arr = np.ascontiguousarray(inputs[name])
+                context.set_input_shape(name, tuple(arr.shape))
+
+                trt_dtype = engine.get_tensor_dtype(name)
+                torch_dtype = self._torch_dtype_from_trt(trt_dtype)
+
+                tensor = torch.from_numpy(arr).to(device=self.device, dtype=torch_dtype, non_blocking=False)
+                bindings_torch[name] = tensor
+
+        # Optional shape inference check
+        unresolved = context.infer_shapes()
+        if unresolved:
+            raise RuntimeError(f"TensorRT shape inference unresolved tensors: {unresolved}")
+
+        # Create CUDA output tensors after shapes are known
+        for i in range(engine.num_io_tensors):
+            name = engine.get_tensor_name(i)
+            mode = engine.get_tensor_mode(name)
+
+            if mode == self.trt.TensorIOMode.OUTPUT:
+                shape = tuple(context.get_tensor_shape(name))
+                if any(dim < 0 for dim in shape):
+                    raise RuntimeError(f"Invalid output shape for '{name}': {shape}")
+
+                trt_dtype = engine.get_tensor_dtype(name)
+                torch_dtype = self._torch_dtype_from_trt(trt_dtype)
+
+                tensor = torch.empty(size=shape, dtype=torch_dtype, device=self.device)
+                bindings_torch[name] = tensor
+
+        # Bind all tensor addresses
+        for i in range(engine.num_io_tensors):
+            name = engine.get_tensor_name(i)
+            context.set_tensor_address(name, int(bindings_torch[name].data_ptr()))
+
+        ok = context.execute_async_v3(stream_handle=stream.cuda_stream)
+        if not ok:
+            raise RuntimeError("TensorRT execution failed.")
+
+        stream.synchronize()
+
+        outputs: Dict[str, np.ndarray] = {}
+        for i in range(engine.num_io_tensors):
+            name = engine.get_tensor_name(i)
+            mode = engine.get_tensor_mode(name)
+            if mode == self.trt.TensorIOMode.OUTPUT:
+                outputs[name] = bindings_torch[name].detach().cpu().numpy()
+
+        return outputs
+
+    @torch.inference_mode()
+    def infer_preprocessed(
+        self,
+        clip_cthw: np.ndarray,
+        detections: List[Detection],
+        anticipation_time_sec: float = 1.0,
+    ) -> List[OverlayPrediction]:
+        if len(detections) == 0:
+            return []
+
+        clip = np.expand_dims(clip_cthw.astype(np.float32), axis=0)
+        ant = np.array([anticipation_time_sec], dtype=np.float32)
+
+        encoder_out = self._infer_engine(
+            self.encoder_engine,
+            self.encoder_context,
+            {
+                "clip": clip,
+                "anticipation_times": ant,
+            },
+        )
+
+        features = encoder_out["features"]
+        features = np.repeat(features, repeats=len(detections), axis=0).astype(np.float32, copy=False)
+
+        bboxes = self.build_bbox_tensor(detections).numpy().astype(np.float32, copy=False)
+
+        classifier_out = self._infer_engine(
+            self.classifier_engine,
+            self.classifier_context,
+            {
+                "features": features,
+                "bboxes": bboxes,
+            },
+        )
+
+        cross = classifier_out["cross"]
+        cross_probs = F.softmax(torch.from_numpy(cross), dim=-1)[..., 1].numpy().tolist()
+
+        return [
+            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
+            for det, prob in zip(detections, cross_probs)
+        ]
+
+
+def build_runner(
+    config_path: str,
+    encoder_model: str,
+    classifier_model: str,
+    sweep_idx: int = 0,
+    device: str = "cuda:0",
+    use_fp16: bool = True,
+):
+    enc_fmt = get_model_format(encoder_model)
+    cls_fmt = get_model_format(classifier_model)
+
+    if enc_fmt != cls_fmt:
+        raise ValueError(
+            f"Mixed backends are not supported. Got encoder={enc_fmt}, classifier={cls_fmt}"
+        )
+
+    if enc_fmt == "pt":
+        return PyTorchRunner(
+            config_path=config_path,
+            encoder_model=encoder_model,
+            classifier_model=classifier_model,
+            sweep_idx=sweep_idx,
+            device=device,
+            use_fp16=use_fp16,
+        )
+
+    if enc_fmt == "onnx":
+        return ONNXRunner(
+            config_path=config_path,
+            encoder_model=encoder_model,
+            classifier_model=classifier_model,
+            device=device,
+        )
+
+    if enc_fmt == "engine":
+        return TensorRTRunner(
+            config_path=config_path,
+            encoder_model=encoder_model,
+            classifier_model=classifier_model,
+            device=device,
+        )
+
+    raise ValueError(f"Unsupported backend: {enc_fmt}")
 
 
 class FramewiseBBoxCSV:
@@ -188,136 +628,10 @@ class YOLOPedTracker:
         return detections[: self.max_boxes]
 
 
-class ModelRunner:
-    def __init__(
-        self,
-        config_path: str,
-        classifier_ckpt: str,
-        sweep_idx: int = 0,
-        device: str = "cuda:0",
-        use_fp16: bool = True,
-    ):
-        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
-        self.use_fp16 = use_fp16 and self.device.type == "cuda"
-
-        with open(config_path, "r") as f:
-            cfg = yaml.safe_load(f)
-
-        args_pretrain = cfg["model_kwargs"]
-        args_model = args_pretrain["pretrain_kwargs"]
-        args_wrapper = args_pretrain["wrapper_kwargs"]
-        args_exp = cfg["experiment"]
-        args_classifier = args_exp["classifier"]
-        args_data = args_exp["data"]
-        args_opt = args_exp["optimization"]
-
-        self.data_base_path = args_data.get("base_path")
-        self.frames_per_clip = int(args_data["frames_per_clip"])
-        self.frames_per_second = float(args_data["frames_per_second"])
-        self.resolution = int(args_data.get("resolution", 224))
-        self.num_probe_blocks = int(args_classifier.get("num_probe_blocks", 1))
-        self.num_heads = int(args_classifier["num_heads"])
-        self.num_classifiers = len(args_opt["multihead_kwargs"])
-
-        cross_classes = {0: 0, 1: 1}
-        action_classes = {0: 0, 1: 1}
-        intersection_classes = {i: i for i in range(5)}
-        signalized_classes = {i: i for i in range(4)}
-
-        self.encoder = init_module(
-            module_name=args_pretrain["module_name"],
-            frames_per_clip=self.frames_per_clip,
-            frames_per_second=self.frames_per_second,
-            resolution=self.resolution,
-            checkpoint=args_pretrain["checkpoint"],
-            model_kwargs=args_model,
-            wrapper_kwargs=args_wrapper,
-            device=self.device,
-        )
-        self.encoder.eval()
-        for p in self.encoder.parameters():
-            p.requires_grad_(False)
-
-        classifiers = init_classifier(
-            embed_dim=self.encoder.embed_dim,
-            num_heads=self.num_heads,
-            cross_classes=cross_classes,
-            action_classes=action_classes,
-            intersection_classes=intersection_classes,
-            signalized_classes=signalized_classes,
-            num_blocks=self.num_probe_blocks,
-            device=self.device,
-            num_classifiers=self.num_classifiers,
-        )
-
-        checkpoint = robust_checkpoint_loader(classifier_ckpt, map_location=torch.device("cpu"))
-        if "classifiers" not in checkpoint:
-            raise KeyError("Expected classifier checkpoint with key 'classifiers'.")
-        if sweep_idx >= len(checkpoint["classifiers"]):
-            raise IndexError(
-                f"sweep_idx={sweep_idx} out of range for {len(checkpoint['classifiers'])} sweeps"
-            )
-
-        self.classifier = classifiers[sweep_idx]
-        state_dict = checkpoint["classifiers"][sweep_idx]
-        if any(k.startswith("module.") for k in state_dict.keys()):
-            state_dict = {k[len("module."):]: v for k, v in state_dict.items()}
-        msg = self.classifier.load_state_dict(state_dict, strict=True)
-        print(f"Loaded sweep {sweep_idx}: {msg}")
-
-        self.classifier.eval()
-        for p in self.classifier.parameters():
-            p.requires_grad_(False)
-
-        del checkpoint
-        if self.device.type == "cuda":
-            torch.cuda.empty_cache()
-
-    def preprocess_frame(self, frame_bgr: np.ndarray) -> np.ndarray:
-        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        rgb = cv2.resize(rgb, (self.resolution, self.resolution), interpolation=cv2.INTER_LINEAR)
-        return np.transpose(rgb, (2, 0, 1)).astype(np.float32) / 255.0
-
-    def build_bbox_tensor(self, detections: List[Detection]) -> torch.Tensor:
-        if len(detections) == 0:
-            return torch.zeros((0, self.frames_per_clip, 4), dtype=torch.float32)
-
-        arr = np.zeros((len(detections), self.frames_per_clip, 4), dtype=np.float32)
-        for i, det in enumerate(detections):
-            arr[i, :, :] = np.asarray(det.track_sequence, dtype=np.float32)  # type: ignore[attr-defined]
-        return torch.from_numpy(arr)
-
-    @torch.inference_mode()
-    def infer_preprocessed(
-        self,
-        clip_cthw: np.ndarray,
-        detections: List[Detection],
-        anticipation_time_sec: float = 1.0,
-    ) -> List[OverlayPrediction]:
-        if len(detections) == 0:
-            return []
-
-        clip = torch.from_numpy(clip_cthw).unsqueeze(0).to(self.device, non_blocking=True)
-        bboxes = self.build_bbox_tensor(detections).to(self.device, non_blocking=True)
-        anticipation_times = torch.tensor([anticipation_time_sec], dtype=torch.float32, device=self.device)
-
-        with torch.cuda.amp.autocast(enabled=self.use_fp16, dtype=torch.float16):
-            features = self.encoder(clip, anticipation_times)
-            features = features.expand(len(detections), -1, -1)
-            out = self.classifier(features, bboxes=bboxes)
-            cross_probs = F.softmax(out["cross"], dim=-1)[..., 1]
-
-        probs = cross_probs.detach().float().cpu().numpy().tolist()
-        return [
-            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
-            for det, prob in zip(detections, probs)
-        ]
-
-
 class AsyncVideoProcessor:
     def __init__(
         self,
-        runner: ModelRunner,
+        runner,
         video_path: Optional[str],
         output_path: str,
         bbox_csv: Optional[str] = None,
@@ -418,12 +732,17 @@ class AsyncVideoProcessor:
                 break
 
             _, clip_cthw, detections = item
-            preds = self.runner.infer_preprocessed(
-                clip_cthw,
-                detections,
-                anticipation_time_sec=self.anticipation_time,
-            )
-            self.pred_queue.put(preds)
+            try:
+                preds = self.runner.infer_preprocessed(
+                    clip_cthw,
+                    detections,
+                    anticipation_time_sec=self.anticipation_time,
+                )
+                self.pred_queue.put(preds)
+            except Exception as e:
+                print(f"[inference_loop] ERROR: {e}")
+                self.pred_queue.put([])
+                break
 
         self.pred_queue.put(None)
 
@@ -615,7 +934,8 @@ class AsyncVideoProcessor:
 def parse_args():
     p = argparse.ArgumentParser(description="Async raw bbox track + raw inference overlay")
     p.add_argument("--config", type=str, required=True)
-    p.add_argument("--classifier-ckpt", type=str, required=True)
+    p.add_argument("--encoder-model", type=str, required=True, help="Encoder file: .pt, .onnx, or .engine")
+    p.add_argument("--classifier-model", type=str, required=True, help="Classifier file: .pt, .onnx, or .engine")
     p.add_argument("--video", type=str, default=None)
     p.add_argument("--output", type=str, required=True)
     p.add_argument("--bbox-csv", type=str, default=None, help="optional framewise bbox CSV; if omitted, use YOLO tracking")
@@ -667,9 +987,10 @@ def main():
     if args.video is None or str(args.video).strip() == "":
         raise ValueError("A valid --video path is required")
 
-    runner = ModelRunner(
+    runner = build_runner(
         config_path=args.config,
-        classifier_ckpt=args.classifier_ckpt,
+        encoder_model=args.encoder_model,
+        classifier_model=args.classifier_model,
         sweep_idx=args.sweep_idx,
         device=args.device,
         use_fp16=not args.no_fp16,

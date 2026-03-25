@@ -1,9 +1,3 @@
- 
-#
- 
- 
-
-
 import math
 
 import torch
@@ -96,7 +90,8 @@ class AttentivePooler(nn.Module):
                     x = torch.utils.checkpoint.checkpoint(blk, x, False, None, use_reentrant=False)
                 else:
                     x = blk(x)
-        q = self.query_tokens.repeat(len(x), 1, 1)
+        # q = self.query_tokens.repeat(len(x), 1, 1)
+        q = self.query_tokens.repeat(x.shape[0], 1, 1)
         q = self.cross_attention_block(q, x)
         return q
 

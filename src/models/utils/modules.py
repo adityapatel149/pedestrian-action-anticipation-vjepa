@@ -1,8 +1,3 @@
- 
-#
- 
- 
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,16 +18,27 @@ def build_action_block_causal_attention_mask(T, H, W, add_tokens=1):
     return mask
 
 
+# def rotate_queries_or_keys(x, pos):
+#     B, num_heads, N, D = x.size()
+#     assert D % 2 == 0, "Embedding dimension must be a multiple of 2 for block matrix rotation"
+
+#     # -- compute angle for each position
+#     omega = torch.arange(D // 2, dtype=x.dtype, device=x.device)
+#     omega /= D / 2.0
+#     omega = 1.0 / 10000**omega  # (D/2,)
+#     freq = torch.einsum("..., f -> ... f", pos, omega)  # (..., N, D/2), outer product
+
+# ONNX-friendly
 def rotate_queries_or_keys(x, pos):
     B, num_heads, N, D = x.size()
-    assert D % 2 == 0, "Embedding dimension must be a multiple of 2 for block matrix rotation"
 
-    # -- compute angle for each position
+    # Make sure position tensor is floating point for ONNX einsum
+    pos = pos.to(dtype=x.dtype)
+
     omega = torch.arange(D // 2, dtype=x.dtype, device=x.device)
     omega /= D / 2.0
-    omega = 1.0 / 10000**omega  # (D/2,)
-    freq = torch.einsum("..., f -> ... f", pos, omega)  # (..., N, D/2), outer product
-
+    omega = 1.0 / (10000 ** omega)
+    freq = torch.einsum("...,f->...f", pos, omega)
     # -- build rotation matrix and apply
     emb_sin = freq.sin()  # (..., N, D/2)
     emb_cos = freq.cos()  # (..., N, D/2)
@@ -321,7 +327,8 @@ class RoPEAttention(nn.Module):
         # --
         # Remove frame component from ids (1st term) and height component (2nd term)
         width_ids = (ids - tokens_per_frame * frame_ids) - tokens_per_row * height_ids
-        return frame_ids, height_ids, width_ids
+        #return frame_ids, height_ids, width_ids
+        return 1.0 * frame_ids, 1.0 * height_ids, 1.0 * width_ids
 
     def forward(self, x, mask=None, attn_mask=None, T=None, H_patches=None, W_patches=None):
         B, N, C = x.size()
@@ -617,13 +624,15 @@ class CrossAttention(nn.Module):
         k, v = kv[0], kv[1]
 
         # save projected q/k for debugging if useful
-        self.last_q = q.detach()
-        self.last_k = k.detach()
+        if not torch.onnx.is_in_onnx_export():
+            self.last_q = q.detach()
+            self.last_k = k.detach()
 
         # IMPORTANT: compute and save attention explicitly
         xattn = (q @ k.transpose(-2, -1)) * self.scale
         xattn = xattn.softmax(dim=-1)              # [B, heads, query_len, seq_len]
-        self.last_attn = xattn.detach()
+        if not torch.onnx.is_in_onnx_export():
+            self.last_attn = xattn.detach()
 
         out = xattn @ v
         out = out.transpose(1, 2).reshape(B, n, C)

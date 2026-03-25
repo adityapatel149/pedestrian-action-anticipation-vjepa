@@ -168,8 +168,26 @@ class AnticipativeWrapper(torch.nn.Module):
         ctxt_positions = torch.arange(N).unsqueeze(0).repeat(B, 1).to(x.device)
 
         # Position IDs of tokens to skip for each sample in batch [B]
-        anticipation_steps = (anticipation_times * self.frames_per_second / self.tubelet_size).to(torch.int64)
-        skip_positions = N + int(self.grid_size**2) * anticipation_steps
+        # anticipation_steps = (anticipation_times * self.frames_per_second / self.tubelet_size).to(torch.int64)
+        # skip_positions = N + int(self.grid_size**2) * anticipation_steps
+        
+        # ONNX-Friendly operations
+        anticipation_steps = torch.floor(
+            anticipation_times * self.frames_per_second / self.tubelet_size
+        ).to(torch.int64)
+
+        tokens_per_frame = torch.tensor(
+            self.grid_size * self.grid_size,
+            dtype=torch.int64,
+            device=x.device,
+        )
+
+        skip_positions = torch.full(
+            (B,),
+            N,
+            dtype=torch.int64,
+            device=x.device,
+        ) + tokens_per_frame * anticipation_steps
 
         # Position IDs of tokens to predict [B, N_pred]
         N_pred = int(self.grid_size**2 * (self.num_output_frames // self.tubelet_size))
