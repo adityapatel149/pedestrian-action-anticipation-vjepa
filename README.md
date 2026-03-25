@@ -255,9 +255,7 @@ Delta conf equals mean absolute difference between consecutive probabilities.
 | PCPA        | 0.79  | 0.81  | 0.89  | 0.86 | 0.81 | 0.74 | 0.76/0.46         | 0.17/0.07    |
 | BiPed       | 0.84  | 0.84  | 0.93  | 0.89 | 0.84 | **0.79** | 0.82/0.51     | 0.16/0.06    |
 | PedFormer   | **0.88** | **0.85** | **0.94** | **0.89** | **0.85** | **0.79** | **0.82/0.65** | **0.12/0.04** |
-
 | Model        | mAP   | bAcc  | AUC   | Acc  | Prec | F1   | soft_F1 / hard_F1 | conf∆ max/avg |
-|-------------|-------|-------|-------|------|------|------|-------------------|--------------|
 | Ours (Sweep 0) | 0.799 | **0.860** | **0.922** | **0.866** | **0.706** | **0.771** | **0.799 / 0.637** | 0.366 / 0.054 |
 | Ours (Sweep 1) | 0.796 | 0.848 | 0.914 | 0.850 | 0.674 | 0.750 | 0.759 / **0.648** | **0.147 / 0.038** |
 | Ours (Sweep 2) | **0.825** | 0.850 | 0.918 | 0.855 | 0.687 | 0.755 | 0.786 / 0.638 | 0.159 / **0.035** |
@@ -330,25 +328,30 @@ These results show that **world-model-based representations transfer effectively
 ## Visualization
 
 ### Attention Heatmaps
-
-Attention heatmap across frames and for "Future frame in latent space (predictor-output)" overlayed on last context frame.
-<p align="center">
-<img src="assets/attn_grid.png" width="750">
-</p>
-
-
-Intersection of attention regions overlayed on last context frame.
-<p align="center">
-<img src="assets/attn_intersection.png" width="750">
-</p>
-
 The probe attends to:
-
 - pedestrians 
 - possible regions for more pedestrians
 - crosswalk regions  
 - traffic signals  
 - possible regions for more signs/traffic signals. (Looking at the top of street pole)
+
+The attention maps show that, across all 7 context frames, the probe consistently focuses on semantically meaningful spatial regions corresponding to pedestrians, crosswalk areas, traffic signals, and other relevant street-scene cues. The attended regions align with the locations of visible pedestrians and traffic infrastructure, while also highlighting nearby candidate areas where additional pedestrians or signals may appear, such as crosswalk entrances and the upper parts of street poles. This suggests that the model is not attending randomly, but is tracking task-relevant regions over time in order to form its future-frame prediction in latent space.
+
+Attention heatmap across frames and for "Future frame in latent space (predictor-output)" overlayed on last context frame:
+<p align="center">
+<img src="assets/attn_grid.png" width="750">
+</p>
+
+
+
+The intersection map, overlaid on the last context frame, may highlight regions that appear empty or irrelevant at that final timestep. However, these regions correspond to locations that were attended to in earlier frames, where pedestrians, crosswalks, traffic signals, or other relevant cues were present. Thus, the intersection captures temporally consistent areas of importance across all 7 frames, even if those regions are no longer occupied in the final frame. This indicates that the model maintains attention on semantically meaningful locations over time, rather than relying solely on instantaneous visual content.
+
+Intersection of attention regions overlayed on last context frame:
+<p align="center">
+<img src="assets/attn_intersection.png" width="350">
+</p>
+
+
 
 ### Anticipation Performance
 
