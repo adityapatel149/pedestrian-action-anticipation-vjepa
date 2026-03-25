@@ -46,23 +46,69 @@ To run inference on a video without annotations:
 ```bash
 python .\video_inference.py `
     --config configs/inference/vitl/pie.yaml `
-    --classifier-ckpt your_folder/evals/vitl/pie/action_anticipation_frozen/pie-vitl16/latest.pt `
+    --encoder-model path/to/your/engines/encoder.engine `
+    --classifier-model path/to/your/engines/classifier_1.engine `
     --output output.mp4 `
     --video path/to/your/test.mp4 `
     --detector-conf 0.15 `
     --max-boxes 10 `
-    --detector yolo26n.pt `
+    --detector engines/yolo26m.engine `
     --tracker botsort.yaml `
-    --anticipation-time `
-    --sweep-idx 1
+    --anticipation-time 1.0 `
+    --display --render-scale 0.5
+
+```
+
+To run using .pt files:
+
+```bash
+python .\video_inference.py `
+    --config configs/inference/vitl/pie.yaml `
+    --classifier-model your_folder/evals/vitl/pie/action_anticipation_frozen/pie-vitl16/latest.pt `
+    --sweep-idx 1 `
+    --output output.mp4 `
+    --video path/to/your/test.mp4 `
+    --detector-conf 0.15 `
+    --max-boxes 10 `
+    --detector engines/yolo26n.pt `
+    --tracker botsort.yaml `
+    --anticipation-time 1.0 `
+    --display --render-scale 0.5
 
 ```
 
 To run test evaluation on PIE benchmark dataset:
 ```bash
 pip install -r requirements.txt
-python evals/main.py --config configs/inference/vitl/pie.yaml
+python -m evals.main --fname configs/eval/vitl/pie.yaml --devices cuda:0
+
 ```
+
+The configs allow to train multiple probes in parallel with various optimization parameters. Change filepaths as needed (e.g. folder, checkpoint, dataset_train, dataset_val) to match locations of data and the downloaded vitl.pt vjepa2 checkpoint on your local filesystem. Change # nodes and local batch size as needed to not exceed available GPU memory. Download the probe checkpoints, rename it to 'latest.pt', and create a folder with the checkpoint inside, with the format matching the variables in the config:
+
+```bash
+[folder]/[eval_name]/[tag]/latest.pt
+```
+
+Comment out the following code from evals/main.py if **NOT** running locally on a Windows machine with single GPU:
+
+```bash
+
+    import torch.distributed as dist
+    import tempfile
+
+    temp_dir = tempfile.gettempdir()
+    init_file = os.path.join(temp_dir, "shared_init_file")
+
+    dist.init_process_group(
+        backend="gloo",  # use 'nccl' only if running on GPU with compatible setup
+        init_method=f"file://{init_file}",
+        rank=0,
+        world_size=1
+    )
+
+```
+
 
 ---
 
@@ -195,8 +241,7 @@ Instance level metrics:
 
 Confidence stability:
 
-Delta conf equals mean absolute difference between consecutive
-probabilities.
+Delta conf equals mean absolute difference between consecutive probabilities.
 
 ---
 
@@ -204,19 +249,20 @@ probabilities.
 
 ### Core Performance on PIE test split
 
-| Model        | mAP   | bAcc  | AUC   | Acc  | Prec | F1   | soft_F1 / hard_F1 | conf∆        |
+| Model        | mAP   | bAcc  | AUC   | Acc  | Prec | F1   | soft_F1 / hard_F1 | conf∆ max/avg |
 |-------------|-------|-------|-------|------|------|------|-------------------|--------------|
 | SF-GRU      | 0.75  | 0.75  | 0.87  | 0.83 | 0.79 | 0.65 | 0.67/0.43         | 0.10/0.04    |
 | PCPA        | 0.79  | 0.81  | 0.89  | 0.86 | 0.81 | 0.74 | 0.76/0.46         | 0.17/0.07    |
 | BiPed       | 0.84  | 0.84  | 0.93  | 0.89 | 0.84 | **0.79** | 0.82/0.51     | 0.16/0.06    |
 | PedFormer   | **0.88** | **0.85** | **0.94** | **0.89** | **0.85** | **0.79** | **0.82/0.65** | **0.12/0.04** |
-|-------------|-------|-------|-------|------|------|------|-------------------|--------------|
-| Ours (S0)   | 0.799 | **0.860** | **0.922** | **0.866** | **0.706** | **0.771** | **0.799 / 0.637** | 0.366 / 0.054 |
-| Ours (S1)   | 0.796 | 0.848 | 0.914 | 0.850 | 0.674 | 0.750 | 0.759 / **0.648** | **0.147 / 0.038** |
-| Ours (S2)   | **0.825** | 0.850 | 0.918 | 0.855 | 0.687 | 0.755 | 0.786 / 0.638 | 0.159 / **0.035** |
 
-> Note: The sweeps correspond to parameter sweeps where the model was
-trained with different learning rates.
+| Model        | mAP   | bAcc  | AUC   | Acc  | Prec | F1   | soft_F1 / hard_F1 | conf∆ max/avg |
+|-------------|-------|-------|-------|------|------|------|-------------------|--------------|
+| Ours (Sweep 0) | 0.799 | **0.860** | **0.922** | **0.866** | **0.706** | **0.771** | **0.799 / 0.637** | 0.366 / 0.054 |
+| Ours (Sweep 1) | 0.796 | 0.848 | 0.914 | 0.850 | 0.674 | 0.750 | 0.759 / **0.648** | **0.147 / 0.038** |
+| Ours (Sweep 2) | **0.825** | 0.850 | 0.918 | 0.855 | 0.687 | 0.755 | 0.786 / 0.638 | 0.159 / **0.035** |
+
+> Note: The sweeps correspond to parameter sweeps where the model was trained with different learning rates.
 
 
 #### Strengths of Each Sweep
@@ -258,7 +304,7 @@ Example:
 ```bash
     python video_inference.py \
       --config configs/inference/vitl/pie.yaml \
-      --classifier-ckpt path/to/checkpoint.pt \
+      --classifier-model path/to/checkpoint.pt \
       --video path/to/video.mp4 \
       --sweep-idx 0
 ```
@@ -285,15 +331,24 @@ These results show that **world-model-based representations transfer effectively
 
 ### Attention Heatmaps
 
+Attention heatmap across frames and for "Future frame in latent space (predictor-output)" overlayed on last context frame.
 <p align="center">
-<img src="assets/attention_heatmaps.png" width="750">
+<img src="assets/attn_grid.png" width="750">
+</p>
+
+
+Intersection of attention regions overlayed on last context frame.
+<p align="center">
+<img src="assets/attn_intersection.png" width="750">
 </p>
 
 The probe attends to:
 
-• pedestrian motion patterns  
-• crosswalk regions  
-• traffic signals  
+- pedestrians 
+- possible regions for more pedestrians
+- crosswalk regions  
+- traffic signals  
+- possible regions for more signs/traffic signals. (Looking at the top of street pole)
 
 ### Anticipation Performance
 
@@ -302,6 +357,8 @@ The probe attends to:
 </p>
 
 Performance is evaluated against **Time-To-Event (TTE)**.
+
+We observe a decrement across all metrics with increase in anticipation time / time-to-event.
 
 ---------------------------------------------------------------------
 
