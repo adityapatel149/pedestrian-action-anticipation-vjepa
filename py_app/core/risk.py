@@ -26,10 +26,13 @@ def estimate_risk(
 
 def risk_to_color(risk: float) -> Tuple[int, int, int]:
     risk = float(np.clip(risk, 0.0, 1.0))
-    if risk < 0.5:
-        alpha = risk / 0.5
+    midpoint = 0.6  # <-- new yellow point
+
+    if risk < midpoint:
+        alpha = risk / midpoint
         g, r = 255, int(255 * alpha)
     else:
-        alpha = (risk - 0.5) / 0.5
+        alpha = (risk - midpoint) / (1.0 - midpoint)
         g, r = int(255 * (1.0 - alpha)), 255
+
     return (0, g, r)

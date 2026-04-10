@@ -5,7 +5,8 @@ from typing import List, Dict
 
 from py_app.runners.base_runner import BaseRunner
 from py_app.core.config import load_runtime_config, compute_softmax
-from py_app.core.datatypes import Detection, OverlayPrediction
+from py_app.core.datatypes import Detection, Prediction
+
 
 class ONNXRunner(BaseRunner):
     def __init__(
@@ -36,7 +37,7 @@ class ONNXRunner(BaseRunner):
         clip_cthw: np.ndarray,
         detections: List[Detection],
         anticipation_time_sec: float = 1.0,
-    ) -> List[OverlayPrediction]:
+    ) -> List[Prediction]:
         if len(detections) == 0:
             return []
 
@@ -58,6 +59,9 @@ class ONNXRunner(BaseRunner):
 
         cross_probs = compute_softmax(cross, axis=-1)[..., 1].tolist()
         return [
-            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
+            Prediction(
+                track_id=det.track_id,
+                cross_prob=float(prob),
+            )
             for det, prob in zip(detections, cross_probs)
         ]

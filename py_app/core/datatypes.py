@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import numpy as np
+
 
 @dataclass
 class Detection:
@@ -11,10 +12,11 @@ class Detection:
 
 
 @dataclass
-class OverlayPrediction:
+class Prediction:
     track_id: int
     cross_prob: float
     risk_score: float = 0.0
+    distance_m: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -32,3 +34,11 @@ class BevConfig:
     bev_half_width_m: float
     depth_sample_step: int
     depth_max_points: int
+
+
+@dataclass
+class EngineOutput:
+    detections: List[Detection]
+    predictions: List[Prediction]
+    overlay: Optional[np.ndarray] = None
+    bev: Optional[np.ndarray] = None

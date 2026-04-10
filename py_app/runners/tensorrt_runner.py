@@ -1,11 +1,11 @@
 import torch
-import onnxruntime as ort
 import numpy as np
 from typing import List, Dict, Set, Optional
 
 from py_app.runners.base_runner import BaseRunner
 from py_app.core.config import load_runtime_config, compute_softmax
-from py_app.core.datatypes import Detection, OverlayPrediction
+from py_app.core.datatypes import Detection, Prediction
+
 
 class TensorRTRunner(BaseRunner):
     def __init__(
@@ -26,14 +26,9 @@ class TensorRTRunner(BaseRunner):
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         if self.device.type != "cuda":
             raise RuntimeError("TensorRTRunner requires CUDA.")
-        
-        
 
         self._tensor_cache = {}
         self.stream = torch.cuda.current_stream(device=self.device)
-
-        
-        
 
         self.trt = trt
         self.logger = trt.Logger(trt.Logger.WARNING)
@@ -72,7 +67,6 @@ class TensorRTRunner(BaseRunner):
         if dtype not in mapping or mapping[dtype] is None:
             raise TypeError(f"Unsupported TensorRT dtype: {dtype}")
         return mapping[dtype]
-
 
     def _ensure_cuda_tensor(self, x, dtype):
         if isinstance(x, np.ndarray):
@@ -170,6 +164,9 @@ class TensorRTRunner(BaseRunner):
         probs = cross_probs.detach().cpu().numpy()
 
         return [
-            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
+            Prediction(
+                track_id=det.track_id,
+                cross_prob=float(prob),
+            )
             for det, prob in zip(detections, probs)
         ]

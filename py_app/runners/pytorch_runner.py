@@ -8,7 +8,8 @@ from src.utils.checkpoint_loader import robust_checkpoint_loader
 
 from py_app.runners.base_runner import BaseRunner
 from py_app.core.config import load_runtime_config
-from py_app.core.datatypes import Detection, OverlayPrediction
+from py_app.core.datatypes import Detection, Prediction
+
 
 class PyTorchRunner(BaseRunner):
     def __init__(
@@ -98,7 +99,7 @@ class PyTorchRunner(BaseRunner):
         clip_cthw: np.ndarray,
         detections: List[Detection],
         anticipation_time_sec: float = 1.0,
-    ) -> List[OverlayPrediction]:
+    ) -> List[Prediction]:
         if len(detections) == 0:
             return []
 
@@ -114,6 +115,9 @@ class PyTorchRunner(BaseRunner):
 
         probs = cross_probs.detach().float().cpu().numpy().tolist()
         return [
-            OverlayPrediction(track_id=det.track_id, cross_prob=float(prob))
+            Prediction(
+                track_id=det.track_id,
+                cross_prob=float(prob),
+            )
             for det, prob in zip(detections, probs)
         ]
