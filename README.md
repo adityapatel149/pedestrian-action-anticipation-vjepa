@@ -44,17 +44,16 @@ This project presents a pedestrian action anticipation system built on **V-JEPA2
 To run inference on a video without annotations:
 
 ```bash
-python .\video_inference.py `
+python -m py_app.main `
     --config configs/inference/vitl/pie.yaml `
     --encoder-model path/to/your/engines/encoder.engine `
     --classifier-model path/to/your/engines/classifier_1.engine `
-    --output output.mp4 `
     --video path/to/your/test.mp4 `
-    --detector-conf 0.15 `
+    --detector-conf 0.3 `
     --max-boxes 10 `
     --detector engines/yolo26m.engine `
-    --tracker botsort.yaml `
     --anticipation-time 1.0 `
+    --use-depth --depth-model path/to/your/engines/da3-small.engine `
     --display --render-scale 0.5
 
 ```
@@ -62,18 +61,17 @@ python .\video_inference.py `
 To run using .pt files:
 
 ```bash
-python .\video_inference.py `
+python -m py_app.main `
     --config configs/inference/vitl/pie.yaml `
     --classifier-model your_folder/evals/vitl/pie/action_anticipation_frozen/pie-vitl16/latest.pt `
     --sweep-idx 1 `
-    --output output.mp4 `
     --video path/to/your/test.mp4 `
-    --detector-conf 0.15 `
+    --detector-conf 0.3 `
     --max-boxes 10 `
     --detector engines/yolo26n.pt `
-    --tracker botsort.yaml `
     --anticipation-time 1.0 `
     --display --render-scale 0.5
+    --use-depth --depth-model path/to/your/engines/da3-small.engine `
 
 ```
 
