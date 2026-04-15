@@ -1,0 +1,31 @@
+anticipation_node:
+  ros__parameters:
+    topics:
+      image_topic: /camera/image_raw
+      tracks_topic: /pedestrian/tracks
+      predictions_topic: /pedestrian/predictions
+
+    anticipation:
+      encoder_model: /path/to/encoder.onnx        # Can also be a TensorRT .engine file
+      classifier_model: /path/to/classifier.onnx  # Can also be a TensorRT .engine file
+      input_fps: 30.0
+      model_fps: 15.0
+      clip_len: 8
+      resolution: 256
+      max_boxes: 8
+      infer_every_n_frames: 6
+
+    camera:
+      fx: 1004.8374
+      fy: 1004.3913
+      cx: 960.10254
+      cy: 573.55383
+      cam_height_m: 1.27
+      cam_pitch_deg: -10.0
+      dist_coeffs: [-0.027480543, -0.007055051, -0.039625194, 0.019310795]
+
+    bev:
+      max_range_m: 30.0
+      half_width_m: 12.0
+      frame_width: 1920
+      frame_height: 1080

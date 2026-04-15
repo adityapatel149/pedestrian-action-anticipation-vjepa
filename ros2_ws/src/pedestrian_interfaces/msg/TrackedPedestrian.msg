@@ -1,0 +1,3 @@
+int32 track_id
+pedestrian_interfaces/BoundingBox2DNormalized bbox
+float32 score

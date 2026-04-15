@@ -1,0 +1,22 @@
+tracker_node:
+  ros__parameters:
+    topics:
+      image_topic: /camera/image_raw
+      tracks_topic: /pedestrian/tracks
+
+    tracker:
+      model_path: /path/to/yolo.engine  # Can also be a TensorRT .engine file
+      det_thresh: 0.25
+      max_age: 30
+      max_obs: 50
+      min_hits: 3
+      iou_threshold: 0.2
+      per_class: false
+      nr_classes: 1
+      asso_func: iou
+      is_obb: false
+      min_conf: 0.25
+      track_thresh: 0.25
+      match_thresh: 0.5
+      track_buffer: 30
+      frame_rate: 30

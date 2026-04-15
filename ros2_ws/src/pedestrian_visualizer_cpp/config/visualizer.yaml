@@ -1,0 +1,22 @@
+visualizer_node:
+  ros__parameters:
+    topics:
+      image_topic: /camera/image_raw
+      tracks_topic: /pedestrian/tracks
+      predictions_topic: /pedestrian/predictions
+      debug_image_topic: /pedestrian/debug_image
+      bev_image_topic: /pedestrian/bev_image
+
+    camera:
+      fx: 1004.8374
+      fy: 1004.3913
+      cx: 960.10254
+      cy: 573.55383
+      cam_height_m: 1.27
+      cam_pitch_deg: -10.0
+      dist_coeffs: [-0.027480543, -0.007055051, -0.039625194, 0.019310795]
+
+    bev:
+      bev_size: 700
+      max_range_m: 30.0
+      half_width_m: 12.0

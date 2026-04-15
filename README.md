@@ -44,6 +44,9 @@ This project presents a pedestrian action anticipation system built on **V-JEPA2
 To run inference on a video without annotations:
 
 ```bash
+pip install -r requirements.txt
+pip install -e .
+
 python -m py_app.main `
     --config configs/inference/vitl/pie.yaml `
     --encoder-model path/to/your/engines/encoder.engine `

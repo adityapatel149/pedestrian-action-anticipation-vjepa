@@ -1,0 +1,7 @@
+int32 track_id
+pedestrian_interfaces/BoundingBox2DNormalized bbox
+float32 detection_score
+float32 crossing_prob
+float32 risk_score
+float32 distance_m
+bool has_distance

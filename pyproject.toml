@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pedestrian-action-anticipation-vjepa"
+version = "0.1.0"
+description = "Pedestrian action anticipation core package and ROS2 integration"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "pyyaml",
+    "ultralytics",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["py_app*"]

@@ -26,3 +26,5 @@ jupyter
 
 ultralytics
 lap
+onnxruntime
+tensorrt
