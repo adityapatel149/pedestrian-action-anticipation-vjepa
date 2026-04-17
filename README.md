@@ -34,6 +34,14 @@ Examples showing **early anticipation of pedestrian crossing behavior**.
 > **Note:** GitHub README does not reliably support `autoplay` for embedded videos, so viewers will usually need to press play manually.
 
 ---
+## TLDR
+### **End-to-End Pedestrian Behavior Prediction & Risk Estimation System**
+
+- Built a **real-time, latency-critical autonomous perception system** predicting pedestrian crossing intent **1–3s ahead** by training **V-JEPA2 (ViT-L) self-supervised world model + multi-task attention head**, achieving **~0.92 AUC / 0.86 accuracy** on PIE benchmark while balancing **throughput vs accuracy trade-offs**  
+- Designed and processed **large-scale video datasets (JAAD, PIE; 100K+ frames)** using **Python, OpenCV, NumPy, and PyTorch**, including **data cleaning, temporal clip sampling (0.5s windows @15 FPS), annotation alignment, bbox encoding**, and **data-centric pipeline design for robust training and evaluation**  
+- Engineered a **production-grade, asynchronous pipeline (Python + C++/ROS2)** with **modular nodes** for **YOLO-based detection (TensorRT), multi-object tracking (MOT), anticipation, depth estimation, and BEV visualization**, leveraging **pipeline parallelism and memory-efficient streaming** for real-time multi-pedestrian reasoning  
+- Developed **depth-aware BEV projection** using monocular depth + **camera calibration (intrinsics/extrinsics)** for **3D geometric reasoning**, and designed a **probabilistic risk scoring algorithm** combining intent probability, distance-to-ego vehicle, and temporal consistency for real-time hazard prioritization  
+- Achieved **95+ FPS on NVIDIA L4 GPU (≈10× speedup from ~10 FPS PyTorch)** via **ONNX → TensorRT conversion, quantization (FP16/INT8), model compression, and profiling**, demonstrating **deployment-aware ML design**; evaluated using **AUROC, mAP, F1, and temporal stability metrics**, with performance **competitive with state-of-the-art models under real-time constraints**
 
 ## Overview
 **Objective**: Predicting pedestrian crossing behavior **before it happens**.
