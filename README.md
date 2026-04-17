@@ -33,6 +33,14 @@ Examples showing **early anticipation of pedestrian crossing behavior**.
 
 > **Note:** GitHub README does not reliably support `autoplay` for embedded videos, so viewers will usually need to press play manually.
 
+
+
+### ROS2 Modular Node Graph
+
+<p align="center">
+<img src="ros2_ws/rosgraph.png" height="480">
+</p>
+
 ---
 ## TLDR
 ### **End-to-End Pedestrian Behavior Prediction & Risk Estimation System**
