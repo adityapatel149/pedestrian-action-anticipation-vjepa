@@ -16,34 +16,42 @@ Examples showing **early anticipation of pedestrian crossing behavior**.
 <table>
   <tr>
     <td align="center" width="100%">
-      <video src="https://github.com/user-attachments/assets/59a3509c-674a-44c9-9b75-2eaffd23007b" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/5d03b4b3-d1fe-423a-a6a2-0481f20555b7" controls width="100%"></video>
       <br>
-      <sub><b>Example 1:</b> Early crossing anticipation in urban traffic</sub>
+      <sub><b>Example 1:</b> Accurate anticipation in urban intersections</sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="100%">
-      <video src="https://github.com/user-attachments/assets/21df32f4-e365-455f-817b-56ad942497b3" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/6eb65479-0e8c-42a3-9393-c47811f41417" controls width="100%"></video>
       <br>
-      <sub><b>Example 2:</b> Pedestrian intent prediction before motion onset</sub>
+      <sub><b>Example 2:</b> Precise prediction of pedestrian intent prior to any observable motion cues</sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="100%">
-      <video src="https://github.com/user-attachments/assets/0a8a0edb-e944-496a-a7f7-c3d0f5ba7453" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/1d7e777e-6f92-40cc-907a-4d5c6798de2c" controls width="100%"></video>
       <br>
-      <sub><b>Example 3:</b> Anticipating crossing under complex scene dynamics</sub>
+      <sub><b>Example 3:</b> Robust and generalizable pedestrian intent prediction under complex and dynamic traffic conditions</sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="100%">
-      <video src="https://github.com/user-attachments/assets/1f2f1fec-f7ab-4b03-b326-2a19366afedd" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/4ac37f21-d87e-4f73-9ee5-265817a0004d" controls width="100%"></video>
       <br>
-      <sub><b>Example 4:</b> Robust prediction across varied pedestrian behavior</sub>
+      <sub><b>Example 4:</b> Consistent and reliable crossing anticipation in diverse environments</sub>
     </td>
   </tr>
 </table>
 > **Note:** GitHub README does not reliably support `autoplay` for embedded videos, so viewers will usually need to press play manually.
+
+
+
+
+
+
+
+
 
 
 
