@@ -1,60 +1,108 @@
-# Pedestrian Action Prediction Using VJEPA-2 Self-Supervised World Model
+# End-to-End Pedestrian Behavior Prediction & Risk Estimation System Using VJEPA-2 Self-Supervised World Model
 
-### Demo
+One of the few real-time (95+ fps), deployment-ready systems with near-state-of-the-art performance using a self-supervised transformer world model for 1–3s early pedestrian behavior prediction and probabilistic risk estimation, leveraging future latent prediction in a modular pipeline.
+
+> Python, C++, PyTorch, OpenCV, ROS2, ONNX, TensorRT, FP16, NumPy, Matplotlib, Linux, Git, ViT, YOLO, MOT, monocular depth estimation, camera calibration, BEV projection.
+
+
+## Paper
+
+📄 **[Read the full paper](https://github.com/adityapatel149/pedestrian-action-anticipation-vjepa/blob/main/assets/main.pdf)**
+
+## Demo
 
 Examples showing **early anticipation of pedestrian crossing behavior**.
 
 <table>
   <tr>
-    <td align="center" width="50%">
+    <td align="center" width="100%">
       <video src="https://github.com/user-attachments/assets/59a3509c-674a-44c9-9b75-2eaffd23007b" controls width="100%"></video>
       <br>
       <sub><b>Example 1:</b> Early crossing anticipation in urban traffic</sub>
     </td>
-    <td align="center" width="50%">
+  </tr>
+  <tr>
+    <td align="center" width="100%">
       <video src="https://github.com/user-attachments/assets/21df32f4-e365-455f-817b-56ad942497b3" controls width="100%"></video>
       <br>
       <sub><b>Example 2:</b> Pedestrian intent prediction before motion onset</sub>
     </td>
   </tr>
   <tr>
-    <td align="center" width="50%">
+    <td align="center" width="100%">
       <video src="https://github.com/user-attachments/assets/0a8a0edb-e944-496a-a7f7-c3d0f5ba7453" controls width="100%"></video>
       <br>
       <sub><b>Example 3:</b> Anticipating crossing under complex scene dynamics</sub>
     </td>
-    <td align="center" width="50%">
+  </tr>
+  <tr>
+    <td align="center" width="100%">
       <video src="https://github.com/user-attachments/assets/1f2f1fec-f7ab-4b03-b326-2a19366afedd" controls width="100%"></video>
       <br>
       <sub><b>Example 4:</b> Robust prediction across varied pedestrian behavior</sub>
     </td>
   </tr>
 </table>
-
 > **Note:** GitHub README does not reliably support `autoplay` for embedded videos, so viewers will usually need to press play manually.
 
 
 
-### ROS2 Modular Node Graph
+## ROS2 Modular Node Graph
 
 <p align="center">
-<img src="ros2_ws/rosgraph.png" height="480">
+<img src="assets/rosgraph.png" height="480">
 </p>
 
 ---
 ## TLDR
-### **End-to-End Pedestrian Behavior Prediction & Risk Estimation System**
+#### **End-to-End Pedestrian Behavior Prediction & Risk Estimation System**
 
-- Built a **real-time, latency-critical autonomous perception system** predicting pedestrian crossing intent **1–3s ahead** by training **V-JEPA2 (ViT-L) self-supervised world model + multi-task attention head**, achieving **~0.92 AUC / 0.86 accuracy** on PIE benchmark while balancing **throughput vs accuracy trade-offs**  
-- Designed and processed **large-scale video datasets (JAAD, PIE; 100K+ frames)** using **Python, OpenCV, NumPy, and PyTorch**, including **data cleaning, temporal clip sampling (0.5s windows @15 FPS), annotation alignment, bbox encoding**, and **data-centric pipeline design for robust training and evaluation**  
-- Engineered a **production-grade, asynchronous pipeline (Python + C++/ROS2)** with **modular nodes** for **YOLO-based detection (TensorRT), multi-object tracking (MOT), anticipation, depth estimation, and BEV visualization**, leveraging **pipeline parallelism and memory-efficient streaming** for real-time multi-pedestrian reasoning  
-- Developed **depth-aware BEV projection** using monocular depth + **camera calibration (intrinsics/extrinsics)** for **3D geometric reasoning**, and designed a **probabilistic risk scoring algorithm** combining intent probability, distance-to-ego vehicle, and temporal consistency for real-time hazard prioritization  
-- Achieved **95+ FPS on NVIDIA L4 GPU (≈10× speedup from ~10 FPS PyTorch)** via **ONNX → TensorRT conversion, quantization (FP16/INT8), model compression, and profiling**, demonstrating **deployment-aware ML design**; evaluated using **AUROC, mAP, F1, and temporal stability metrics**, with performance **competitive with state-of-the-art models under real-time constraints**
+- Built a real-time, latency-critical autonomous perception system predicting pedestrian crossing behavior 1–3s ahead by training **(ViT-L) self-supervised world model + multi-task attention head**, achieving **0.92 AUC/0.86 bAacc/0.82 mAP** score on PIE benchmark that leverages predicted future latent representations for decision making.  
+- Designed and processed **large-scale video datasets** (JAAD, PIE; **900K+ frames**) using **Python, OpenCV, NumPy**, and **PyTorch**, including data cleaning, temporal clip sampling (0.5s windows @15 FPS), **annotation alignment**, bbox encoding, and data-centric pipeline design for robust training and evaluation. 
+- Engineered a production-grade, asynchronous pipeline (**Python + C++/ROS2**) with modular nodes for YOLO-based detection (**TensorRT**), multi-object tracking (**MOT**), anticipation, **depth estimation,** and **BEV** visualization, leveraging pipeline parallelism and memory-efficient streaming for real-time multi-pedestrian reasoning. 
+- Developed depth-aware BEV projection using **monocular depth + camera calibration** (intrinsics/extrinsics) for **3D geometric reasoning** and designed a **probabilistic risk scoring algorithm** combining intent probability, distance-to-ego vehicle, and temporal consistency for real-time hazard prioritization. 
+- Achieved **95+ FPS** on NVIDIA L4 GPU (**≈10× speedup from ~10 FPS PyTorch**) via **ONNX → TensorRT** conversion, **quantization (FP16)**, model compression, and **profiling**, demonstrating deployment-aware ML design; evaluated using AUROC, mAP, F1, and temporal stability metrics, with performance competitive with **state-of-the-art models under real-time constraints**.
+
+
 
 ## Overview
+
 **Objective**: Predicting pedestrian crossing behavior **before it happens**.
 
-This project presents a pedestrian action anticipation system built on **V-JEPA2 world model**, a self supervised world model for video understanding. The goal is to anticipate whether a pedestrian is liekly to cross the road in the next 1 to 3 seconds into the future using partial video observations(0.5s of context), enabling safer and more proactive planning in real-world driving systems. 
+This project presents a real-time, end-to-end pedestrian behavior prediction and risk estimation system built on top of V-JEPA2, a self-supervised world model for video understanding.
+
+The system anticipates pedestrian crossing behavior 1–3 seconds before it occurs using partial video observations (~0.5 seconds), enabling safer and more proactive decision-making in autonomous driving systems.
+
+Unlike traditional approaches that rely heavily on supervised learning and reactive pipelines, this system leverages world-model-based representations to reason about future states. It integrates perception, temporal reasoning, geometric understanding, and decision-aware risk estimation into a unified, production-grade pipeline.
+
+Key components include:
+
+- Object detection (YOLO, TensorRT)
+- Multi-object tracking (MOT)
+- Self-supervised world model (V-JEPA2, ViT-L)
+- Future latent prediction
+- Depth estimation and camera calibration
+- Bird’s Eye View (BEV) projection
+- Probabilistic risk scoring
+
+The system is deployed using a ROS2-based asynchronous architecture (Python + C++) and achieves 95+ FPS on an NVIDIA L4 GPU through ONNX conversion, TensorRT acceleration, and FP16 quantization.
+
+### System Architecture
+
+The system operates as a modular, asynchronous pipeline:
+
+Video Input  
+→ YOLO Detection (TensorRT)  
+→ Multi-Object Tracking  
+→ Temporal Clip Sampling (0.5s @ 15 FPS)  
+→ V-JEPA2 Encoder (frozen)  
+→ Future Latent Prediction  
+→ Feature Fusion (context + future + bounding box embeddings)  
+→ Multi-task Attention Head  (crossing, walking, intersection, signalized)
+→ Camera Calibration (intrinsics/extrinsics)  
+→ Depth Estimation  
+→ BEV Projection  
+→ Risk Scoring  
 
 ### Quick Start
 To run inference on a video without annotations:
@@ -133,12 +181,12 @@ Comment out the following code from evals/main.py if **NOT** running locally on 
 
 Pedestrian intent is expressed through subtle cues such as head orientation, motion patterns, proximity to crosswalks, and scene context.
 
-Traditional approaches rely entirely on large-scale manual annotations or on complex pipelines (pose estimation → vehicle odometer data -> trajectory models → rule engines).
+Traditional approaches rely entirely on large-scale manual annotations or on complex pipelines (pose estimation → vehicle odometer data → trajectory models → rule engines).
 By leveraging **self-supervised video representation learning**, this work investigates how well self-supervised world models trained on massive datasets can capture pedestrian intent, motion cues, and scene context.
 
 ---
 
-## System Overview
+## Model Architecture
 
 <p align="center">
 <img src="assets/model_architecture.png" width="800">
@@ -153,17 +201,16 @@ Pipeline:
 5. Augment features using **pedestrian bounding box embeddings**  
 6. Train a lightweight **attention probe network** for prediction  
 
----
-
-## Model Architecture
-
 ### Backbone: V-JEPA2 World Model
 
-• Vision Transformer architecture (ViT-L/16)  
-• Trained using **self-supervised predictive learning**  
-• Learns structured representations of **scene dynamics and motion**
+- Vision Transformer architecture (ViT-L/16)  
+- Trained using **self-supervised predictive learning**  
+- Learns structured representations of **scene dynamics and motion**
+-  Predict future tokens in latent space
+-  Performs classification and reasoning on enriched representations
 
-The backbone remains **frozen**, acting as a general-purpose video world model.
+The backbone remains **frozen**, acting as a general-purpose video world model. This enables anticipation of pedestrian behavior before explicit motion cues appear.
+
 
 ### Multi-Task Prediction Head
 
@@ -174,7 +221,19 @@ Q2 – Walking vs standing
 Q3 – Intersection context  
 Q4 – Traffic signal state  
 
-Multi-task supervision encourages richer representations of pedestrian behavior.
+Multi-task supervision encourages richer representations of pedestrian behavior. This results in a unified representation that captures both scene structure and motion dynamics.
+
+### Loss Optimization
+The model uses a focal loss and alpha = 0.25 & gamma = 2.0, to handle **severe class imbalance** on crossing prediction. 
+The loss weights down auxiliary tasks to allow model to focus on the primary crossing task while learning relevant attention cues from auxiliary tasks.
+
+### From Prediction to Risk Estimation
+
+The system extends beyond classification by computing a probabilistic risk score:
+
+Risk = f(intent probability, distance to ego vehicle, relative position to ego-vehicle)
+
+This enables prioritization of hazards and supports downstream decision-making.
 
 
 ### Why This Approach Works
@@ -193,13 +252,38 @@ This enables:
 
 ## Datasets
 
+To improve robustness, we applied data augmentations during training. These augmentations help the model generalize to variations in scale, occlusion, and scene appearance. We used RandAugment to introduce diverse appearance transformations, random resized cropping to handle scale variations, random horizontal flipping, and random erasing to simulate partial occlusions. 
+
 ### JAAD
 
-Urban driving dataset with pedestrian bounding boxes and crossing labels.
+JAAD is a dataset for studying joint attention in the context of autonomous driving. The focus is on pedestrian and driver behaviors at the point of crossing and factors that influence them. To this end, JAAD dataset provides a richly annotated collection of 346 short video clips (5-10 sec long) extracted from over 240 hours of driving footage. 
+
+| Metric                                              | Value    |
+|----------------------------------------------------|----------|
+| Total number of frames                             | 82,032   |
+| Total number of annotated frames                   | 82,032   |
+| Number of pedestrians with behavior annotations    | 686      |
+| Total number of pedestrians                        | 2,786    |
+| Number of pedestrian bounding boxes                | 378,643  |
+| Average length of pedestrian track (frames)        | 121      |
+| Number of pedestrians who cross the street         | 495      |
+| Number of pedestrians who do not cross the street  | 191      |
 
 ### PIE
 
-Large-scale dataset with detailed pedestrian behavior annotations and scene context.
+PIE is a new dataset for studying pedestrian behavior in traffic. PIE contains over 6 hours of footage recorded in typical traffic scenes with on-board camera. It also provides accurate vehicle information from OBD sensor (vehicle speed, heading direction and GPS coordinates) synchronized with video footage.
+
+| Metric                                             | Value    |
+|---------------------------------------------------|----------|
+| Total number of frames                            | 909,480  |
+| Total number of annotated frames                  | 293,437  |
+| Number of pedestrians with behavior annotations   | 1,842    |
+| Number of pedestrian bounding boxes               | 738,970  |
+| Number of traffic object bounding boxes           | 2,353,983|
+| Average length of pedestrian track (frames)       | 401      |
+| Intend to cross and cross                        | 519      |
+| Intend to cross and don't cross                  | 894      |
+| Do not intend to cross                           | 429      |
 
 ---
 
@@ -258,7 +342,7 @@ Instance level metrics:
 
 Confidence stability:
 
-Delta conf equals mean absolute difference between consecutive probabilities.
+Delta confidence is the absolute difference between consecutive probabilities.
 
 ---
 
@@ -266,21 +350,29 @@ Delta conf equals mean absolute difference between consecutive probabilities.
 
 ### Core Performance on PIE test split
 
+
+
+| Model        | Input     | mAP | bAcc | AUC | Acc | Prec | F1  | Soft bAcc | Hard bAcc | Soft Acc | Hard Acc | Soft Prec | Hard Prec | Soft F1 | Hard F1 | confΔ max | confΔ avg |
+|-------------|-----------|-----|------|-----|-----|------|-----|-----------|-----------|----------|----------|-----------|-----------|---------|---------|------------|------------|
+| SFGRU       | I,B,E     | 0.75| 0.75 | 0.87| 0.83| 0.79 | 0.65| 0.76      | 0.61      | 0.85     | 0.72     | 0.87      | 0.50      | 0.67    | 0.43    | **0.10**   | _0.04_     |
+| PCPA        | I,B,E,P   | 0.79| 0.81 | 0.89| 0.86| 0.81 | 0.74| 0.81      | 0.63      | 0.88     | 0.72     | **0.90**  | 0.50      | 0.76    | 0.46    | 0.17       | 0.07       |
+| BiPed       | I,B,E     | 0.84| 0.84 | _0.93_| **0.89**| 0.84 | **0.79**| _0.86_    | 0.66      | _0.90_   | 0.74     | **0.90**  | 0.56      | **0.82**| 0.51    | 0.16       | 0.06       |
+| PedFormer   | I,B,E     | **0.88**| _0.85_| **0.94**| **0.89**| **0.85**| **0.79**| _0.86_    | _0.76_    | **0.91** | **0.80** | _0.89_    | **0.66**  | **0.82**| _0.65_  | _0.12_     | _0.04_     |
+| Ours (Cross)| I,B       | 0.80| **0.86**| 0.92| _0.87_| 0.71 | _0.77_| **0.87**  | _0.76_    | 0.89     | 0.77     | 0.75      | 0.56      | _0.80_  | 0.64    | 0.37       | 0.05       |
+| Ours (Multi)| I,B       | _0.86_| **0.86**| _0.93_| 0.85| 0.67 | 0.76| _0.86_    | **0.80** | 0.86     | _0.79_    | 0.70      | _0.59_    | 0.77    | **0.68**| **0.10**   | **0.02**   |
+> Experiment results for action prediction on PIE. Input abbreviations: I: RGB Image, B: BoundingBox, E: Ego-Vehicle motion, P: Pose
+
+
+
+### Strengths of Each Sweep
+
 | Model        | mAP   | bAcc  | AUC   | Acc  | Prec | F1   | soft_F1 / hard_F1 | conf∆ max/avg |
 |-------------|-------|-------|-------|------|------|------|-------------------|--------------|
-| SF-GRU      | 0.75  | 0.75  | 0.87  | 0.83 | 0.79 | 0.65 | 0.67/0.43         | 0.10/0.04    |
-| PCPA        | 0.79  | 0.81  | 0.89  | 0.86 | 0.81 | 0.74 | 0.76/0.46         | 0.17/0.07    |
-| BiPed       | 0.84  | 0.84  | 0.93  | 0.89 | 0.84 | **0.79** | 0.82/0.51     | 0.16/0.06    |
-| PedFormer   | **0.88** | **0.85** | **0.94** | **0.89** | **0.85** | **0.79** | **0.82/0.65** | **0.12/0.04** |
-| Model        | mAP   | bAcc  | AUC   | Acc  | Prec | F1   | soft_F1 / hard_F1 | conf∆ max/avg |
 | Ours (Sweep 0) | 0.799 | **0.860** | **0.922** | **0.866** | **0.706** | **0.771** | **0.799 / 0.637** | 0.366 / 0.054 |
 | Ours (Sweep 1) | 0.796 | 0.848 | 0.914 | 0.850 | 0.674 | 0.750 | 0.759 / **0.648** | **0.147 / 0.038** |
 | Ours (Sweep 2) | **0.825** | 0.850 | 0.918 | 0.855 | 0.687 | 0.755 | 0.786 / 0.638 | 0.159 / **0.035** |
-
 > Note: The sweeps correspond to parameter sweeps where the model was trained with different learning rates.
 
-
-#### Strengths of Each Sweep
 
 **Sweep 0 (Best Overall Performance)**
 
@@ -301,13 +393,13 @@ Delta conf equals mean absolute difference between consecutive probabilities.
 -   Good balance between performance and stability
 
 
-#### Which Sweep to Use
+### Which Sweep to Use
 
 -   Use Sweep 0 for best overall performance
 -   Use Sweep 1 for more stable and conservative predictions
 -   Use Sweep 2 for smoother temporal predictions and better ranking
 
-#### Inference Usage
+### Inference Usage
 
 You can select the sweep during inference using:
 ```bash
@@ -395,88 +487,154 @@ Common failure modes observed:
 In real-world driving data, vehicle motion and pedestrian actions are tightly coupled. Vehicles slow down or stop because pedestrians are about to cross, and pedestrians often delay crossing because vehicles are moving. As a result, both signals co-occur and are highly predictive of each other. During training, the model learns these correlations as predictive features, but they do not encode a clear direction of causality. This leads to a form of causal ambiguity, where the model may rely on vehicle motion as a proxy for pedestrian behavior, even though it is not the underlying cause.
 
 This reflects the model’s ability to capture contextual priors present in real-world driving data, where pedestrian actions are influenced by traffic flow. However, this can blur the distinction between intent (what the pedestrian plans to do) and action (what is immediately likely given the current scene constraints), and produce incorrect predictions.
+
+The system identifies a key limitation in real-world data:
+
+- Vehicle motion is strongly correlated with pedestrian behavior
+- Models may learn proxy signals rather than causal relationships
+
+This highlights the importance of understanding dataset bias and causal ambiguity in autonomous systems.
   
 ---
 
-# Tech Stack
+## Tech Stack
 
-Machine Learning
+**Tools & Libraries**
+- Python, C++, ROS2
+- PyTorch, OpenCV, NumPy, Matplotlib
+- OONX, TensorRT
+- Git, Linux
 
-PyTorch  
-Vision Transformers  
-Self-Supervised Learning  
-Multi-Task Learning  
-Attention Mechanisms
+**Machine Learning & Computer Vision**
+- PyTorch
+- Vision Transformers (ViT-L), V-JEPA2 (Self-Supervised World Models)
+- Multi-Task Learning, Attention Mechanisms
+- Temporal Video Understanding / Spatiotemporal Modeling
+- Object Detection (YOLO), Multi-Object Tracking (MOT)
+- Monocular Depth Estimation
 
-Data Engineering
+**Data Engineering & Processing**
+- Large-scale video data pipelines (JAAD, PIE; 100K+ frames)
+- Frame extraction, temporal clip sampling (0.5s @ 15 FPS)
+- Annotation alignment, bounding box encoding
+- Data cleaning, preprocessing, and dataset curation
+- OpenCV, NumPy for efficient video and image processing
 
-Video preprocessing pipelines  
-Frame sampling and annotation alignment  
-Bounding box encoding
+**3D Vision & Geometry**
+- Camera calibration (intrinsics & extrinsics)
+- 3D geometric reasoning and projection (image → world / BEV)
+- Depth-aware Bird’s Eye View (BEV) generation
+- Metric distance estimation from monocular inputs
 
-Systems
+**Systems & Robotics**
+- ROS2 (C++) modular node-based architecture
+- Real-time perception pipelines
+- Multi-node distributed system design
+- Asynchronous processing and pipeline parallelism
 
-CUDA GPU training  
-Python  
-NumPy  
-OpenCV  
-Matplotlib
+**Deployment & Optimization**
+- ONNX export and model conversion
+- TensorRT inference acceleration
+- Quantization (FP16), model compression
+- CUDA acceleration and GPU profiling
+- Latency-critical system design (95+ FPS real-time inference)
 
 ---
 
-# Key Skills Demonstrated
+## Key Skills Demonstrated
+**Research & Experimentation**
+- Adapting state-of-the-art research (V-JEPA2) to real-world systems
+- Designing reproducible ML experiments and ablations
+- Benchmarking against state-of-the-art models
+- Failure case analysis and model interpretability
 
 **Machine Learning Engineering**
-- Temporal deep learning models  
-- Multi-task behavior prediction  
-- Autonomous driving perception and prediction tasks  
+- End-to-end ML system design (data → model → deployment)
+- Temporal deep learning for video understanding
+- Multi-task learning for behavior prediction
+- Self-supervised representation learning (world models)
+- Model evaluation using AUROC, mAP, F1, and temporal stability metrics
 
-**Software Engineering**
-- Modular PyTorch training pipelines  
-- Dataset ingestion and preprocessing systems  
-- GPU accelerated training workflows  
-- Experiment reproducibility and evaluation tooling  
+**Computer Vision & Autonomous Driving**
+- Pedestrian intent prediction and risk estimation
+- Multi-object detection and tracking (MOT)
+- Depth estimation and 3D scene understanding
+- Bird’s Eye View (BEV) projection and spatial reasoning
+- Real-time perception for autonomous systems
 
-**Research Engineering**
+**Software & Systems Engineering**
+- Production-grade pipeline development (Python + C++ + ROS2)
+- Modular system design using ROS2 nodes
+- Asynchronous pipelines and memory-efficient data streaming
+- Real-time system optimization (latency vs throughput trade-offs)
 
-- Implementing state-of-the-art research models  
-- Designing reproducible ML experiments  
-- Analyzing failure cases and model behavior  
+**Deployment & Optimization**
+- Model optimization for real-time inference (ONNX, TensorRT)
+- Quantization and model compression techniques
+- GPU acceleration and performance profiling
+- Deployment-aware ML system design
+
+**Data Engineering**
+- Large-scale video data processing and pipeline design
+- Dataset curation, cleaning, and annotation alignment
+- Efficient preprocessing using OpenCV and NumPy
+- Handling class imbalance and temporal labeling
+
 
 ---
 
-# Repository Structure
+## Repository Structure
 ```bash
 pedestrian-action-anticipation-vjepa/
-├── assets/                        # Figures used in the README/paper-style visuals
-├── configs/                       # Evaluation and inference configs
+├── assets/                         # Figures and visual assets used in the README
+├── configs/                        # Evaluation and inference configs
 │   ├── eval/vitl/
 │   └── inference/vitl/
-├── evals/                         # Task-specific evaluation code
+├── evals/                          # Task-specific evaluation code
 │   ├── action_anticipation_frozen/
-│   └── hub/
-├── src/                           # Core model, dataset, mask, and utility code
+│   ├── hub/
+│   ├── main.py
+│   └── scaffold.py
+├── py_app/                         # Python application for inference/runtime pipeline
+│   ├── core/
+│   ├── runners/
+│   ├── tracking/
+│   ├── visualization/
+│   ├── __init__.py
+│   ├── cli.py
+│   └── main.py
+├── ros2_ws/                        # ROS2 workspace for modular deployment
+│   ├── src/
+│   │   ├── pedestrian_anticipation_cpp/
+│   │   ├── pedestrian_interfaces/
+│   │   ├── pedestrian_tracker_cpp/
+│   │   └── pedestrian_visualizer_cpp/
+│   ├── rosgraph.png
+│   └── test_image_publisher.py
+├── src/                            # Core model, dataset, mask, and utility code
 │   ├── datasets/
 │   ├── hub/
 │   ├── masks/
 │   ├── models/
 │   └── utils/
-├── your_data/                     # JAAD / PIE CSV splits and bbox annotations
-├── video_inference.py            # Real-time inference demo script
+├── your_data/                      # JAAD / PIE splits and bbox annotation CSVs
+│   └── *.csv
 ├── .gitignore
 ├── README.md
+├── pyproject.toml
 └── requirements.txt
+
 ```
 ---
 
-# Future Work
+## Future Work
 
-- Optimizing inference performance
+- ✅ Optimizing inference performance
+- ✅ Real-time deployment for autonomous vehicles 
 - Fine-tuning the V-JEPA2 backbone
 - Longer context 
 - Multi-modal fusion with LiDAR and map data  
 - Pedestrian trajectory prediction
-- Real-time deployment for autonomous vehicles  
 
 ---
 ## Acknowledgment
@@ -488,7 +646,7 @@ https://github.com/facebookresearch/vjepa2
 This project builds upon the evaluation framework and benchmark introduced in [*Diving Deeper Into Pedestrian Behavior Understanding: Intention Estimation, Action Prediction, and Event Risk Assessment*](https://arxiv.org/abs/2407.00446), which provides a comprehensive analysis of pedestrian behavior understanding across multiple tasks, including intention estimation, action prediction, and event risk assessment.
 
 ---
-# Author
+## Author
 
 Aditya Sanjaykumar Patel
 
