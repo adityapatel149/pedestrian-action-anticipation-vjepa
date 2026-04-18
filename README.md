@@ -43,6 +43,7 @@ Examples showing **early anticipation of pedestrian crossing behavior**.
     </td>
   </tr>
 </table>
+
 > **Note:** GitHub README does not reliably support `autoplay` for embedded videos, so viewers will usually need to press play manually.
 
 
