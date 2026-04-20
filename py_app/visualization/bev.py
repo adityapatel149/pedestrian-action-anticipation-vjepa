@@ -14,8 +14,8 @@ def build_bev_background(bev_config: BevConfig) -> np.ndarray:
 
     cx = bev_config.bev_size // 2
     y_base = bev_config.bev_size - 20
-    bonnet_w = int(0.34 * bev_config.bev_size)
-    bonnet_h = int(0.08 * bev_config.bev_size)
+    bonnet_w = int(0.25 * bev_config.bev_size)
+    bonnet_h = int(0.06 * bev_config.bev_size)
 
     overlay = bev.copy()
     cv2.ellipse(overlay, (cx, y_base), (bonnet_w // 2, bonnet_h), 0, 180, 360, (255, 255, 255), 2, cv2.LINE_AA)
@@ -107,6 +107,30 @@ def draw_depth_on_bev(
     return bev
 
 
+def _blend_color(color: Tuple[int, int, int], opacity: float) -> Tuple[int, int, int]:
+    opacity = float(np.clip(opacity, 0.0, 1.0))
+    return tuple(int(np.clip(round(c * opacity), 0, 255)) for c in color)
+
+
+def _draw_bev_marker(
+    canvas: np.ndarray,
+    bev_config: BevConfig,
+    bev_x: float,
+    bev_y: float,
+    color: Tuple[int, int, int],
+    label: str,
+    opacity: float = 1.0,
+) -> None:
+    draw_color = _blend_color(color, opacity)
+    px = int(np.clip(round(bev_x), 0, bev_config.bev_size - 1))
+    py = int(np.clip(round(bev_y), 0, bev_config.bev_size - 1))
+
+    cv2.circle(canvas, (px, py), 4, draw_color, 2, cv2.LINE_AA)
+    tx = min(bev_config.bev_size - 150, px + 12)
+    ty = max(18, py - 8)
+    cv2.putText(canvas, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.45, draw_color, 1, cv2.LINE_AA)
+
+
 def render_bev(
     frame_bgr: np.ndarray,
     detections: List[Detection],
@@ -116,11 +140,17 @@ def render_bev(
     depth: Optional[np.ndarray] = None,
     depth_scale_m_per_unit: Optional[float] = None,
     alpha: float = 0.1,
+    persist_frames: int = 5,
 ) -> np.ndarray:
     bev = build_bev_background(bev_config)
 
     if not hasattr(render_bev, "previous_positions"):
         render_bev.previous_positions = {}
+    if not hasattr(render_bev, "stale_tracks"):
+        render_bev.stale_tracks = {}
+
+    previous_positions: Dict[int, Tuple[float, float]] = render_bev.previous_positions
+    stale_tracks: Dict[int, Dict[str, object]] = render_bev.stale_tracks
 
     if depth is not None:
         bev = draw_depth_on_bev(
@@ -143,7 +173,13 @@ def render_bev(
                 cv2.LINE_AA,
             )
 
+    current_track_ids = set()
+    bev_y_offset = int((3.0 / bev_config.max_range_m) * (bev_config.bev_size - 1))
+
     for det in detections:
+        track_id = det.track_id
+        current_track_ids.add(track_id)
+
         info = compute_ground_distance(frame_bgr, det, camera_config, bev_config)
         if info is None:
             continue
@@ -157,16 +193,17 @@ def render_bev(
             bev_config.max_range_m,
         )
 
-        if det.track_id in render_bev.previous_positions:
-            prev_bev_x, prev_bev_y = render_bev.previous_positions[det.track_id]
+        if track_id in previous_positions:
+            prev_bev_x, prev_bev_y = previous_positions[track_id]
             bev_x = alpha * bev_x + (1 - alpha) * prev_bev_x
             bev_y = alpha * bev_y + (1 - alpha) * prev_bev_y
 
-        render_bev.previous_positions[det.track_id] = (bev_x, bev_y)
+        previous_positions[track_id] = (bev_x, bev_y)
 
-        bev_y -= int((3.0 / bev_config.max_range_m) * (bev_config.bev_size - 1))
+        draw_bev_x = float(np.clip(bev_x, 0, bev_config.bev_size - 1))
+        draw_bev_y = float(np.clip(bev_y - bev_y_offset, 0, bev_config.bev_size - 1))
 
-        pred = predictions.get(det.track_id)
+        pred = predictions.get(track_id)
 
         if pred is None:
             color = (255, 255, 255)
@@ -177,9 +214,49 @@ def render_bev(
             color = risk_to_color(pred.risk_score)
             label = f"{pred.distance_m:.1f}m r={pred.risk_score:.2f}"
 
-        cv2.circle(bev, (int(bev_x), int(bev_y)), 4, color, 2, cv2.LINE_AA)
-        tx = min(bev_config.bev_size - 150, int(bev_x) + 12)
-        ty = max(18, int(bev_y) - 8)
-        cv2.putText(bev, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
+        stale_tracks[track_id] = {
+            "bev_x": draw_bev_x,
+            "bev_y": draw_bev_y,
+            "color": color,
+            "label": label,
+            "age": 0,
+        }
+
+        _draw_bev_marker(
+            canvas=bev,
+            bev_config=bev_config,
+            bev_x=draw_bev_x,
+            bev_y=draw_bev_y,
+            color=color,
+            label=label,
+            opacity=1.0,
+        )
+
+    expired_track_ids = []
+    for track_id, state in list(stale_tracks.items()):
+        if track_id in current_track_ids:
+            continue
+
+        age = int(state.get("age", 0)) + 1
+        if age > persist_frames:
+            expired_track_ids.append(track_id)
+            continue
+
+        state["age"] = age
+        opacity = max(0.0, 1.0 - (age / float(persist_frames + 1)))
+
+        _draw_bev_marker(
+            canvas=bev,
+            bev_config=bev_config,
+            bev_x=float(state["bev_x"]),
+            bev_y=float(state["bev_y"]),
+            color=tuple(state["color"]),
+            label=str(state["label"]),
+            opacity=opacity,
+        )
+
+    for track_id in expired_track_ids:
+        stale_tracks.pop(track_id, None)
+        previous_positions.pop(track_id, None)
 
     return bev

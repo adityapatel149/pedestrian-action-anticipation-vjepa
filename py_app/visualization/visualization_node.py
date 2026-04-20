@@ -86,7 +86,7 @@ class VisualizationNode:
         if bev_config is None:
             bev_config = BevConfig(
                 bev_size=700 if bev_size is None else bev_size,
-                max_range_m=30.0,
+                max_range_m=40.0,
                 bev_half_width_m=12.0,
                 depth_sample_step=self.depth_sample_step,
                 depth_max_points=self.depth_max_points,
