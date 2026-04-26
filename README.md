@@ -1,6 +1,14 @@
-# End-to-End Pedestrian Behavior Prediction & Risk Estimation System Using VJEPA-2 Self-Supervised World Model
+# End-to-End Pedestrian Behavior Prediction & Risk Estimation System for Early AEB Systems 
 
-One of the few real-time (95+ fps), deployment-ready systems with near-state-of-the-art performance using a self-supervised transformer world model for 1–3s early pedestrian behavior prediction and probabilistic risk estimation, leveraging future latent prediction in a modular pipeline.
+This project is a real-time perception system that predicts pedestrian crossing intent **1–3 seconds before motion is observable**, enabling earlier and safer automatic emergency braking (AEB) decisions.
+
+Unlike reactive detection systems, this approach uses a self-supervised world model to anticipate future behavior from short video context (~0.5s), allowing proactive risk estimation in complex urban environments.
+
+Key highlights:
+- Runs at **95+ FPS** with a deployment-ready pipeline (ROS2 + TensorRT)
+- Predicts pedestrian intent **before visible motion cues**
+- End-to-end system: detection → tracking → temporal reasoning → BEV projection → risk scoring
+- Designed for real-world constraints: low latency, multi-agent scenes, noisy data
 
 > Python, C++, PyTorch, OpenCV, ROS2, ONNX, TensorRT, FP16, NumPy, Matplotlib, Linux, Git, ViT, YOLO, MOT, monocular depth estimation, camera calibration, BEV projection.
 
